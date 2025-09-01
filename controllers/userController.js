@@ -1,0 +1,88 @@
+const User = require('../models/User');
+
+exports.activateSubscription = async (req, res) => {
+    try {
+        const { userId, plan } = req.body; // plan: 'weekly', 'monthly', etc.
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        let expiryDate = new Date();
+        switch(plan) {
+            case 'weekly': expiryDate.setDate(expiryDate.getDate() + 7); break;
+            case 'monthly': expiryDate.setMonth(expiryDate.getMonth() + 1); break;
+            case 'quarterly': expiryDate.setMonth(expiryDate.getMonth() + 3); break;
+            case 'half_yearly': expiryDate.setMonth(expiryDate.getMonth() + 6); break;
+            case 'yearly': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
+            default: return res.status(400).json({ msg: 'Invalid plan' });
+        }
+
+        user.subscriptionType = plan;
+        user.subscriptionExpiresAt = expiryDate;
+        await user.save();
+        
+        res.json({ msg: `Subscription activated for ${user.email} until ${expiryDate.toLocaleDateString()}` });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+};
+
+exports.activateSubscription = async (req, res) => {
+    try {
+        const { userId, plan } = req.body;
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        let expiryDate = new Date();
+        if (plan === 'free') {
+            user.subscriptionType = 'free';
+            user.subscriptionExpiresAt = null;
+        } else {
+            switch(plan) {
+                case 'weekly': expiryDate.setDate(expiryDate.getDate() + 7); break;
+                case 'monthly': expiryDate.setMonth(expiryDate.getMonth() + 1); break;
+                case 'quarterly': expiryDate.setMonth(expiryDate.getMonth() + 3); break;
+                case 'half_yearly': expiryDate.setMonth(expiryDate.getMonth() + 6); break;
+                case 'yearly': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
+                default: return res.status(400).json({ msg: 'Invalid plan' });
+            }
+            user.subscriptionType = plan;
+            user.subscriptionExpiresAt = expiryDate;
+        }
+        
+        await user.save();
+        res.json({ msg: 'Subscription updated successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+};
+exports.getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find().select('-password');
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({ msg: 'Server error' });
+    }
+};
+exports.toggleUserStatus = async (req, res) => {
+    try {
+        // ID کاربر از پارامترهای URL خوانده می‌شود
+        const user = await User.findById(req.params.id); 
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        
+        // وضعیت فعلی را برعکس می‌کنیم
+        user.isActive = !user.isActive; 
+        
+        // کاربر را با وضعیت جدید ذخیره می‌کنیم
+        await user.save(); 
+        
+        res.json({ msg: 'User status updated successfully' });
+    } catch (err) {
+        console.error("Error in toggleUserStatus:", err); // لاگ دقیق خطا
+        res.status(500).json({ msg: 'Server error while toggling status' });
+    }
+};

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ورود به پنل مدیریت آزمونک</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f4; }
+        .login-container { padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        input { display: block; width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 0.7rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        h2 { text-align: center; }
+        .error { color: red; text-align: center; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>ورود مدیر</h2>
+        <p id="error-message" class="error"></p>
+        <form id="login-form">
+            <input type="email" id="email" placeholder="ایمیل" required>
+            <input type="password" id="password" placeholder="رمز عبور" required>
+            <button type="submit">ورود</button>
+        </form>
+    </div>
+
+  <script>
+    const form = document.getElementById('login-form');
+    const errorMessage = document.getElementById('error-message');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        errorMessage.textContent = '';
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.msg || 'خطایی رخ داد');
+            }
+            
+            // توکن را در کوکی ذخیره می‌کنیم (برای 1 روز معتبر است)
+            document.cookie = `token=${data.token}; path=/; max-age=86400;`;
+
+            // کاربر را به داشبورد هدایت می‌کنیم
+            window.location.href = '/admin/dashboard';
+
+        } catch (err) {
+            errorMessage.textContent = 'ایمیل یا رمز عبور اشتباه است.';
+        }
+    });
+</script>
+</body>
+</html>

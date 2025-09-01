@@ -1,0 +1,208 @@
+<%- include('partials/header', { title: 'مدیریت کاربران' }) %>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">مدیریت کاربران</h1>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <!-- فرم جستجو و فیلتر -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <input type="text" id="searchInput" class="form-control" placeholder="جستجوی زنده بر اساس نام یا ایمیل...">
+                </div>
+                <div class="col-md-4">
+                    <select id="statusFilter" class="form-select">
+                        <option value="">همه وضعیت‌ها</option>
+                        <option value="active">فقط فعال</option>
+                        <option value="inactive">فقط غیرفعال</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- جدول کاربران -->
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>نام</th>
+                            <th>ایمیل</th>
+                            <th>تاریخ ثبت‌نام</th>
+                            <th>وضعیت</th>
+                            <th>اشتراک</th>
+                            <th class="text-center">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- ردیف‌ها توسط جاوااسکریپت در اینجا ساخته می‌شوند -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<!-- Modal (پنجره پاپ-آپ) برای مدیریت اشتراک -->
+<div class="modal fade" id="subscriptionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">فعال‌سازی اشتراک</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="subscription-form" method="POST">
+          <div class="modal-body">
+                <p>یک پلن اشتراک برای کاربر انتخاب کنید. با انتخاب پلن، تاریخ انقضا به صورت خودکار محاسبه خواهد شد.</p>
+                <input type="hidden" name="userId" id="modalUserId">
+                <div class="mb-3">
+                    <label for="subscriptionPlan" class="form-label">انتخاب پلن</label>
+                    <select name="plan" id="subscriptionPlan" class="form-select" required>
+                        <option value="free">رایگان (غیرفعال‌سازی اشتراک)</option>
+                        <option value="weekly">۱ هفته</option>
+                        <option value="monthly">۱ ماه</option>
+                        <option value="quarterly">۳ ماه</option>
+                        <option value="half_yearly">۶ ماه</option>
+                        <option value="yearly">۱ سال</option>
+                    </select>
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+            <button type="submit" class="btn btn-primary">ذخیره تغییرات</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- تگ مخفی برای انتقال داده‌ها -->
+<script id="users-data" type="application/json">
+    <%- JSON.stringify(users) %>
+</script>
+
+<!-- تگ اسکریپت اصلی -->
+<script>
+    // --- ۱. SETUP & INITIALIZATION ---
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const usersTableBody = document.getElementById('usersTableBody');
+    
+    const usersDataElement = document.getElementById('users-data');
+    let allUsers = JSON.parse(usersDataElement.textContent);
+    
+    const modalElement = document.getElementById('subscriptionModal');
+    const subscriptionModal = new bootstrap.Modal(modalElement);
+
+    // --- ۲. FUNCTIONS (توابع) ---
+
+    // تابع اصلی برای ساختن ردیف‌های جدول
+    function renderTable(usersList) {
+        usersTableBody.innerHTML = '';
+        if (usersList.length === 0) {
+            usersTableBody.innerHTML = '<tr><td colspan="6" class="text-center">کاربری یافت نشد.</td></tr>';
+            return;
+        }
+        usersList.forEach(user => {
+            const expiryDate = user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt).toLocaleDateString('fa-IR') : 'ندارد';
+            const statusBadge = user.isActive ? '<span class="badge bg-success">فعال</span>' : '<span class="badge bg-danger">غیرفعال</span>';
+            const row = `
+                <tr>
+                    <td>${user.name}</td>
+                    <td>${user.email}</td>
+                    <td>${new Date(user.createdAt).toLocaleDateString('fa-IR')}</td>
+                    <td>${statusBadge}</td>
+                    <td>${user.subscriptionType} <small class="text-muted">(${expiryDate})</small></td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleStatus('${user._id}')">تغییر وضعیت</button>
+                        <button class="btn btn-sm btn-outline-success ms-2" onclick="showSubscriptionModal('${user._id}')">مدیریت اشتراک</button>
+                    </td>
+                </tr>
+            `;
+            usersTableBody.innerHTML += row;
+        });
+    }
+
+    // تابع برای اعمال جستجو و فیلتر
+    function filterAndSearch() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        let filteredUsers = allUsers;
+        if (statusValue) {
+            const isActive = statusValue === 'active';
+            filteredUsers = filteredUsers.filter(user => user.isActive === isActive);
+        }
+        if (searchTerm) {
+            filteredUsers = filteredUsers.filter(user => 
+                user.name.toLowerCase().includes(searchTerm) || 
+                user.email.toLowerCase().includes(searchTerm)
+            );
+        }
+        renderTable(filteredUsers);
+    }
+
+    // تابع برای تغییر وضعیت فعال/غیرفعال کاربر
+async function toggleStatus(userId) {
+    if (!confirm('آیا از تغییر وضعیت این کاربر مطمئن هستید؟')) return;
+    try {
+        // ۱. مسیر تغییر وضعیت حالا /api/users/... است
+        const toggleRes = await fetch(`/api/users/${userId}/toggle-active`, {
+            method: 'PUT',
+            headers: { 'x-auth-token': token }
+        });
+        if (!toggleRes.ok) throw new Error('خطا در بروزرسانی وضعیت');
+        
+        // ۲. مسیر گرفتن لیست هم /api/users است
+        const usersRes = await fetch('/api/users', { 
+            headers: { 'x-auth-token': token }
+        });
+        if (!usersRes.ok) throw new Error('خطا در دریافت لیست جدید کاربران');
+        
+        allUsers = await usersRes.json();
+        filterAndSearch();
+    } catch (err) { 
+        alert(err.message); 
+    }
+}
+    // تابع برای نمایش پنجره پاپ-آپ اشتراک
+    function showSubscriptionModal(userId) {
+        document.getElementById('modalUserId').value = userId;
+        subscriptionModal.show();
+    }
+
+
+    // --- ۳. EVENT LISTENERS (رویدادها) ---
+
+    // رویدادها برای جستجو و فیلتر زنده
+    searchInput.addEventListener('input', filterAndSearch);
+    statusFilter.addEventListener('change', filterAndSearch);
+    
+    // رویداد برای ارسال فرم پاپ-آپ اشتراک
+    document.getElementById('subscription-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+        try {
+            const res = await fetch('/api/users/activate-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.msg || 'خطا در فعال‌سازی اشتراک');
+            }
+            subscriptionModal.hide();
+            location.reload(); // ساده‌ترین راه برای دیدن تغییرات
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
+
+    // --- ۴. INITIAL RENDER (اولین اجرا) ---
+    renderTable(allUsers);
+</script>
