@@ -148,3 +148,15 @@ exports.getAllQuestionsForCourse = async (req, res) => {
         res.status(500).send('Server Error');
     }
 }
+exports.getTrialQuestions = async (req, res) => {
+    try {
+        // ۱۰ سوال کاملاً تصادفی از کل کالکشن Question
+        const questions = await Question.aggregate([
+            { $sample: { size: 10 } }
+        ]);
+        res.json(questions);
+    } catch (err) {
+        console.error("Trial Questions Error:", err);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+};

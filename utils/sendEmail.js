@@ -1,18 +1,14 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-    // ۱. ساخت یک Transporter (سرویس‌دهنده ایمیل)
-    // نکته: برای محصول نهایی، از یک سرویس واقعی مثل SendGrid استفاده کنید.
-    // این تنظیمات برای تست با Gmail است.
     const transporter = nodemailer.createTransport({
-        service: 'gmail', // یا هر سرویس دیگری
+        service: 'gmail', // <-- این باید 'gmail' باشد
         auth: {
-            user: process.env.EMAIL_USERNAME, // ایمیل شما
-            pass: process.env.EMAIL_PASSWORD  // پسورد اپلیکیشن شما (App Password)
+            user: process.env.EMAIL_USERNAME,
+            pass: process.env.EMAIL_PASSWORD
         }
     });
 
-    // ۲. تعریف گزینه‌های ایمیل
     const mailOptions = {
         from: `آزمونک <${process.env.EMAIL_FROM}>`,
         to: options.email,
@@ -20,8 +16,10 @@ const sendEmail = async (options) => {
         text: options.message
     };
 
-    // ۳. ارسال ایمیل
+    // برای عیب‌یابی، قبل از ارسال لاگ می‌گیریم
+    console.log("Attempting to send email with nodemailer using Gmail...");
     await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully with nodemailer!");
 };
 
 module.exports = sendEmail;

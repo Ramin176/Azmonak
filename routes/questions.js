@@ -8,7 +8,8 @@ const {
   deleteQuestion, // اضافه شود
   deleteMultipleQuestions, // اضافه شود
   getRandomQuestions,
-  getAllQuestionsForCourse 
+  getAllQuestionsForCourse ,
+   getTrialQuestions
 
 } = require('../controllers/questionController');
 // 1. Middleware را وارد می‌کنیم
@@ -16,7 +17,7 @@ const authMiddleware = require('../middleware/auth');
 
 // 3. تنظیمات Multer
 const upload = multer({ dest: 'uploads/' });
-
+router.get('/trial', getTrialQuestions);
 // تمام مسیرهای این فایل نیاز به احراز هویت دارند
 router.use(authMiddleware);
 
