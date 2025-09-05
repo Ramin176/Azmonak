@@ -6,12 +6,16 @@ const authMiddleware = require('../middleware/auth');
 const { 
     getAllUsers, 
     toggleUserStatus, 
-    activateSubscription 
+    activateSubscription,
+    updateUserDetails,
+    updatePassword 
+
 } = require('../controllers/userController');
 
 // تمام مسیرهای این فایل نیاز به احراز هویت دارند
 router.use(authMiddleware);
-
+router.put('/updatedetails', updateUserDetails);
+router.put('/updatepassword', updatePassword);
 // گرفتن لیست همه کاربران
 router.get('/', getAllUsers);
 

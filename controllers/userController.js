@@ -86,3 +86,60 @@ exports.toggleUserStatus = async (req, res) => {
         res.status(500).json({ msg: 'Server error while toggling status' });
     }
 };
+
+// @desc    Update user details (name)
+// @route   PUT /api/users/updatedetails
+exports.updateUserDetails = async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name) {
+            return res.status(400).json({ msg: 'Name is required' });
+        }
+        
+        // کاربر را پیدا کرده و فقط نام او را آپدیت می‌کنیم
+        const user = await User.findByIdAndUpdate(req.user.id, { name: name }, {
+            new: true, // آبجکت آپدیت شده را برگردان
+            runValidators: true
+        }).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        
+        res.status(200).json(user);
+
+    } catch (err) {
+        console.error("Update Details Error:", err.message);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+};
+
+
+// @desc    Update user password
+// @route   PUT /api/users/updatepassword
+exports.updatePassword = async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+
+    try {
+        // ۱. کاربر را از دیتابیس پیدا می‌کنیم (این بار با پسورد)
+        const user = await User.findById(req.user.id).select('+password');
+
+        // ۲. پسورد قدیمی وارد شده را با پسورد ذخیره شده مقایسه می‌کنیم
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ msg: 'Incorrect old password' });
+        }
+
+        // ۳. پسورد جدید را در مدل ست می‌کنیم
+        user.password = newPassword;
+        
+        // ۴. کاربر را ذخیره می‌کنیم (middleware هش کردن به صورت خودکار اجرا می‌شود)
+        await user.save();
+
+        res.status(200).json({ msg: 'Password updated successfully' });
+
+    } catch (err) {
+        console.error("Update Password Error:", err.message);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+};
