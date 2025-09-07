@@ -35,7 +35,7 @@ app.use('/api/courses', require('./routes/courses'));
 app.use('/api/questions', require('./routes/questions'));
 app.use('/admin', require('./routes/admin'));
 app.use('/api/quiz-attempts', require('./routes/quiz.js'));
-
+app.use('/api/settings', require('./routes/settings'));
 app.use('/api/users', require('./routes/users'));
 app.get('/', (req, res) => {
     res.send('API is running...');

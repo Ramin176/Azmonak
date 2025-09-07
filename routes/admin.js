@@ -2,12 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-
+const Settings = require('../models/Settings');
 // 1. تمام مدل‌های مورد نیاز را در بالا وارد می‌کنیم
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Category = require('../models/Category');
 const Question = require('../models/Question');
+
 // const QuestionType = require('../models/QuestionType'); // <-- مدل جدید
 
 router.get('/login', (req, res) => {
@@ -36,6 +37,24 @@ const checkAuth = (req, res, next) => {
 // تمام مسیرهای این فایل از این به بعد نیاز به احراز هویت دارند
 router.use(checkAuth);
 
+
+// @route   GET /admin/settings
+// @desc    Show the settings management page
+router.get('/settings', checkAuth, async (req, res) => {
+    try {
+        let settings = await Settings.findOne({ singleton: 'main_settings' });
+        if (!settings) {
+            settings = {}; // اگر تنظیماتی وجود نداشت، یک آبجکت خالی بفرست
+        }
+        res.render('settings', {
+            title: 'تنظیمات اپلیکیشن',
+            settings: settings
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Server Error");
+    }
+});
 // 3. حالا مسیرها را تعریف می‌کنیم
 
 // @route   GET /admin/dashboard

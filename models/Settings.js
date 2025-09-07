@@ -1,0 +1,20 @@
+const mongoose = require('mongoose');
+
+const PlanSchema = new mongoose.Schema({
+    duration: { type: String, required: true }, // e.g., '۱ هفته'
+    price: { type: String, required: true },    // e.g., '۱۰۰ دالر'
+    planKey: { type: String, required: true },  // e.g., 'weekly'
+     questionLimit: { type: Number, required: true, default: 10 },
+});
+
+const SettingsSchema = new mongoose.Schema({
+    // یک فیلد ثابت برای اینکه همیشه فقط یک سند تنظیمات داشته باشیم
+    singleton: { type: String, default: 'main_settings', unique: true },
+    
+    paymentInstructions: { type: String, default: 'دستورالعمل پرداخت را اینجا وارد کنید.' },
+    telegramLink: { type: String, default: 'https://t.me/ramin0121' },
+    accountNumber: { type: String, default: '659285329538' },
+    subscriptionPlans: [PlanSchema]
+});
+
+module.exports = mongoose.model('Settings', SettingsSchema);

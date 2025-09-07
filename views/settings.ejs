@@ -1,0 +1,159 @@
+<%- include('partials/header', { title: 'تنظیمات اپلیکیشن' }) %>
+
+<div class="container-fluid">
+    <h1 class="h2 mb-4">تنظیمات اپلیکیشن</h1>
+
+    <form id="settings-form">
+        <div class="row g-4">
+            <!-- ستون اطلاعات پرداخت -->
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">اطلاعات پرداخت</h5>
+                        <div class="mb-3">
+                            <label class="form-label">شماره حساب بانکی</label>
+                            <input type="text" name="accountNumber" class="form-control" value="<%= settings.accountNumber || '' %>">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">لینک کامل تلگرام</label>
+                            <input type="url" name="telegramLink" class="form-control" value="<%= settings.telegramLink || '' %>">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">دستورالعمل پرداخت</label>
+                            <textarea name="paymentInstructions" class="form-control" rows="4"><%= settings.paymentInstructions || '' %></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ستون پلن‌های اشتراک -->
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">پلن‌های اشتراک</h5>
+                        <p class="small text-muted">پلن‌های تعریف شده در اینجا به صورت داینامیک در اپلیکیشن نمایش داده می‌شوند.</p>
+                        <div id="plans-container">
+                            <!-- پلن‌ها با جاوااسکریپت اینجا ساخته می‌شوند -->
+                        </div>
+                        <button type="button" id="add-plan-btn" class="btn btn-outline-secondary btn-sm mt-2">
+                            <i class="bi bi-plus-circle"></i> افزودن پلن جدید
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary px-5">ذخیره تمام تغییرات</button>
+        </div>
+    </form>
+</div>
+
+<%- include('partials/footer') %>
+
+<!-- تگ مخفی برای انتقال داده‌های پلن‌ها -->
+<script id="plans-data" type="application/json">
+    <%- JSON.stringify(settings.subscriptionPlans || []) %>
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        const plansContainer = document.getElementById('plans-container');
+        const plansDataElement = document.getElementById('plans-data');
+        
+        // خواندن امن داده‌ها
+        let initialPlans = [];
+        if (plansDataElement && plansDataElement.textContent.trim()) {
+            try {
+                initialPlans = JSON.parse(plansDataElement.textContent);
+            } catch (e) {
+                console.error('Error parsing initial plans JSON:', e);
+            }
+        }
+
+        // تابع برای ساختن HTML یک پلن
+        function createPlanHtml(plan = {}) {
+            return `
+                <div class="border rounded p-3 mb-2 plan-group">
+                    <input type="hidden" name="subscriptionPlans" class="plan-data-input">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small">کلید پلن (انگلیسی)</label>
+                            <select class="form-select form-select-sm plan-key" required>
+                                <option value="weekly" ${plan.planKey === 'weekly' ? 'selected' : ''}>weekly</option>
+                                <option value="monthly" ${plan.planKey === 'monthly' ? 'selected' : ''}>monthly</option>
+                                <option value="quarterly" ${plan.planKey === 'quarterly' ? 'selected' : ''}>quarterly</option>
+                                <option value="half_yearly" ${plan.planKey === 'half_yearly' ? 'selected' : ''}>half_yearly</option>
+                                <option value="yearly" ${plan.planKey === 'yearly' ? 'selected' : ''}>yearly</option>
+                            </select>
+                        </div>
+                         <div class="col-md-2">
+                    <label class="form-label small">سقف سوالات</label>
+                    <input type="number" class="form-control form-control-sm plan-limit" value="${plan.questionLimit || 10}">
+                </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">مدت زمان (فارسی)</label>
+                            <input type="text" class="form-control form-control-sm plan-duration" value="${plan.duration || ''}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">قیمت (با واحد پول)</label>
+                            <input type="text" class="form-control form-control-sm plan-price" value="${plan.price || ''}" required>
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-sm btn-outline-danger w-150" onclick="this.closest('.plan-group').remove()">حذف</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // رندر کردن پلن‌های اولیه
+        initialPlans.forEach(plan => {
+            plansContainer.innerHTML += createPlanHtml(plan);
+        });
+
+        // افزودن پلن جدید با کلیک
+        document.getElementById('add-plan-btn').addEventListener('click', () => {
+            plansContainer.insertAdjacentHTML('beforeend', createPlanHtml());
+        });
+
+        // ارسال فرم
+        document.getElementById('settings-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const planInputs = document.querySelectorAll('.plan-data-input');
+            planInputs.forEach(input => {
+                const group = input.closest('.plan-group');
+                const planData = {
+                    planKey: group.querySelector('.plan-key').value,
+                    duration: group.querySelector('.plan-duration').value,
+                    price: group.querySelector('.plan-price').value,
+                     questionLimit: parseInt(group.querySelector('.plan-limit').value)
+                };
+                input.value = JSON.stringify(planData);
+            });
+
+            const formData = new FormData(this);
+            const data = {
+                subscriptionPlans: formData.getAll('subscriptionPlans').map(JSON.parse),
+                accountNumber: formData.get('accountNumber'),
+                telegramLink: formData.get('telegramLink'),
+                paymentInstructions: formData.get('paymentInstructions'),
+            };
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                    body: JSON.stringify(data)
+                });
+                if (!res.ok) throw new Error('خطا در ذخیره تنظیمات');
+                alert('تنظیمات با موفقیت ذخیره شد!');
+                location.reload();
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+    });
+</script>
