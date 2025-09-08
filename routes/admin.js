@@ -28,6 +28,15 @@ const checkAuth = (req, res, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = decoded.user;
+        // این قسمت جدید است
+            if (user && user.role === 'admin') {
+            req.user = decoded.user;
+            next(); // فقط اگر کاربر ادمین بود، اجازه عبور بده
+        } else {
+            // اگر کاربر ادمین نبود، او را به صفحه لاگین برگردان
+            // (می‌توانیم یک پیام خطا هم نشان دهیم)
+            return res.redirect('/admin/login?error=auth');
+        }
         next();
     } catch (err) {
         return res.redirect('/admin/login');
