@@ -19,7 +19,7 @@ const QuestionSchema = new mongoose.Schema({
     text: { type: String, required: true },
     score: { type: Number, default: 1 },
     explanation: { type: String },
-
+    imageUrl: { type: String },
     // فیلدهای مخصوص چهارگزینه‌ای
     options: [OptionSchema],
     correctAnswerIndex: { type: Number },

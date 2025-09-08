@@ -4,12 +4,14 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const cookieParser = require('cookie-parser'); 
+const seedAdminUser = require('./utils/seedAdmin');
+
 // Load env vars
 dotenv.config();
 
 // Connect to database
 connectDB();
-
+seedAdminUser();
 const app = express();
 
 app.use(cookieParser());
@@ -21,6 +23,7 @@ app.use(express.static('public'));
 // Body Parser Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 // Enable CORS
 app.use(cors({
   origin: '*', // به همه دامنه‌ها اجازه بده
@@ -37,6 +40,7 @@ app.use('/admin', require('./routes/admin'));
 app.use('/api/quiz-attempts', require('./routes/quiz.js'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/upload', require('./routes/upload'));
 app.get('/', (req, res) => {
     res.send('API is running...');
 });

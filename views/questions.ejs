@@ -37,6 +37,11 @@
                         <label class="form-label mt-2">نمره</label>
                         <input type="number" name="score" class="form-control" value="1">
                     </div>
+                      <div class="mt-3">
+                    <label for="questionImage" class="form-label">تصویر سوال (اختیاری)</label>
+                    <input class="form-control" type="file" name="questionImage" id="questionImage" accept="image/*">
+                    <input type="hidden" name="imageUrl" id="imageUrlInput">
+                </div>
                 </div>
                 <hr class="my-4">
                 <div id="answer-fields-container">
@@ -102,8 +107,11 @@
     const questionCountSpan = document.getElementById('question-count');
     const selectAllCheckbox = document.getElementById('select-all-checkbox');
 
+
+
+    
     // --- DYNAMIC FORM BUILDER ---
-    typeSelector.addEventListener('change', (e) => {
+      typeSelector.addEventListener('change', (e) => {
         const type = e.target.value;
         let html = '';
         switch (type) {
@@ -118,7 +126,7 @@
                  html = `<h6>پاسخ صحیح</h6><input type="text" name="correctAnswerText" class="form-control" placeholder="کلمه یا عبارت صحیح را وارد کنید" required>`;
                 break;
             case 'matching':
-                html = `<h6>جفت‌های تطبیقی (حداقل ۳ جفت)</h6><p class="small text-muted">صورت سوال را با پاسخ صحیح آن جفت کنید. گزینه‌ها برای کاربر به هم ریخته نمایش داده خواهد شد.</p><div id="matching-pairs-container"></div><button type="button" id="add-match-pair-btn" class="btn btn-outline-secondary btn-sm mt-2"><i class="bi bi-plus-circle"></i> افزودن جفت</button>`;
+                html = `<h6>جفت‌های تطبیقی (حداقل ۳ جفت)</h6><p class="small text-muted">صورت سوال را با پاسخ صحیح آن جفت کنید.</p><div id="matching-pairs-container"></div><button type="button" id="add-match-pair-btn" class="btn btn-outline-secondary btn-sm mt-2"><i class="bi bi-plus-circle"></i> افزودن جفت</button>`;
                 setTimeout(addInitialPairs, 0);
                 break;
         }
@@ -140,38 +148,97 @@
             document.getElementById('matching-pairs-container').insertAdjacentHTML('beforeend', pairHtml);
         }
     });
-
     // --- FORM SUBMISSION LOGIC ---
-    document.getElementById('add-question-form').addEventListener('submit', async (e) => {
+     document.getElementById('add-question-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        const form = e.target;
-        const formData = new FormData(form);
-        const data = {};
-        for (let [key, value] of formData.entries()) {
-            if (key.endsWith('[]')) { const cleanKey = key.slice(0, -2); if (!data[cleanKey]) data[cleanKey] = []; data[cleanKey].push(value); }
-            else { data[key] = value; }
-        }
-        if (data.type === 'multiple_choice') {
-            data.options = [];
-            for (let i = 0; i < 4; i++) { const text = formData.get(`options[${i}][text]`); if(text) data.options.push({ text: text }); }
-        }
-        if (data.type === 'matching') {
-            data.correctMatches = [];
-            for (let i = 0; i < (data.matchingPrompts?.length || 0); i++) { data.correctMatches.push({ prompt: data.matchingPrompts[i], answer: data.matchingAnswers[i] }); }
-        }
-        const questionId = data.questionId;
-        let url = '/api/questions';
-        let method = 'POST';
-        if (questionId) { url = `/api/questions/${questionId}`; method = 'PUT'; } else { data.course = courseId; }
+        const form = this;
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> در حال ذخیره...';
+
         try {
-            const res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json', 'x-auth-token': token }, body: JSON.stringify(data) });
-            const savedQuestion = await res.json();
-            if (!res.ok) throw new Error(savedQuestion.msg || 'خطا در عملیات');
-            if (questionId) { const index = questions.findIndex(q => q._id === questionId); questions[index] = savedQuestion; }
-            else { questions.push(savedQuestion); }
+            const imageInput = document.getElementById('questionImage');
+            let imageUrl = form.querySelector('input[name="imageUrl"]')?.value || '';
+
+            // مرحله ۱: اگر عکس جدیدی انتخاب شده بود، آن را آپلود کن
+            if (imageInput.files.length > 0) {
+                const imageFormData = new FormData();
+                imageFormData.append('questionImage', imageInput.files[0]);
+                const uploadRes = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'x-auth-token': token },
+                    body: imageFormData
+                });
+                const uploadResult = await uploadRes.json();
+                if (!uploadRes.ok) throw new Error(uploadResult.msg || 'خطا در آپلود تصویر');
+                imageUrl = uploadResult.filePath;
+            }
+
+            // مرحله ۲: آدرس عکس را در فیلد مخفی قرار بده و داده‌ها را جمع‌آوری کن
+            document.getElementById('imageUrlInput').value = imageUrl;
+
+            const formData = new FormData(form);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'questionImage') { // فیلد فایل را در JSON نهایی قرار نده
+                    if (key.endsWith('[]')) {
+                        const cleanKey = key.slice(0, -2);
+                        if (!data[cleanKey]) data[cleanKey] = [];
+                        data[cleanKey].push(value);
+                    } else {
+                        data[key] = value;
+                    }
+                }
+            }
+            
+            if (data.type === 'multiple_choice') {
+                data.options = [];
+                for (let i = 0; i < 4; i++) {
+                    const text = formData.get(`options[${i}][text]`);
+                    if(text) data.options.push({ text: text });
+                }
+            }
+            if (data.type === 'matching') {
+                data.correctMatches = [];
+                for (let i = 0; i < (data.matchingPrompts?.length || 0); i++) {
+                    data.correctMatches.push({ prompt: data.matchingPrompts[i], answer: data.matchingAnswers[i] });
+                }
+            }
+
+            const questionId = data.questionId;
+            let url = '/api/questions';
+            let method = 'POST';
+            if (questionId) {
+                url = `/api/questions/${questionId}`;
+                method = 'PUT';
+            } else {
+                data.course = courseId;
+            }
+
+            const questionRes = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                body: JSON.stringify(data)
+            });
+            const savedQuestion = await questionRes.json();
+            if (!questionRes.ok) throw new Error(savedQuestion.msg || 'خطا در ذخیره سوال');
+            
+            if (questionId) {
+                const index = questions.findIndex(q => q._id === questionId);
+                questions[index] = savedQuestion;
+            } else {
+                questions.push(savedQuestion);
+            }
             renderQuestionsList();
             resetFormForAdd();
-        } catch (err) { alert(err.message); }
+
+        } catch (err) {
+            const errorMessage = err.message || String(err);
+    alert(errorMessage);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'افزودن سوال به لیست';
+        }
     });
 
     document.getElementById('upload-form').addEventListener('submit', async (e) => {
@@ -195,15 +262,27 @@
     });
 
     // --- UI RENDERING & MANAGEMENT ---
-    function renderQuestionsList() {
+       function renderQuestionsList() {
         questionListContainer.innerHTML = '';
         questionCountSpan.textContent = questions.length;
         if (questions.length === 0) {
             questionListContainer.innerHTML = `<p class="text-center text-muted p-3">هنوز سوالی برای این دوره ثبت نشده است.</p>`;
         } else {
             questions.forEach((q, index) => {
+                const imageHtml = q.imageUrl ? `<img src="${q.imageUrl}" class="img-fluid rounded mb-2" style="max-height: 100px;">` : '';
                 const questionTypeDisplay = q.type ? q.type.replace(/_/g, ' ') : 'نامشخص';
-                const card = `<div class="list-group-item d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" value="${q._id}" onchange="toggleDeleteButton()"><div class="flex-grow-1"><p class="fw-bold mb-1">${index + 1}. ${q.text || '(متن سوال موجود نیست)'}</p><small class="text-muted">نوع: ${questionTypeDisplay} | نمره: ${q.score || 0}</small></div><div><button class="btn btn-sm btn-outline-primary me-2" onclick="editQuestion('${q._id}')"><i class="bi bi-pencil"></i> ویرایش</button><button class="btn btn-sm btn-outline-danger" onclick="deleteSingleQuestion('${q._id}')"><i class="bi bi-trash"></i> حذف</button></div></div>`;
+                const card = `<div class="list-group-item d-flex align-items-center">
+                                <input class="form-check-input me-3" type="checkbox" value="${q._id}" onchange="toggleDeleteButton()">
+                                <div class="flex-grow-1">
+                                    ${imageHtml}
+                                    <p class="fw-bold mb-1">${index + 1}. ${q.text || '(متن سوال موجود نیست)'}</p>
+                                    <small class="text-muted">نوع: ${questionTypeDisplay} | نمره: ${q.score || 0}</small>
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editQuestion('${q._id}')"><i class="bi bi-pencil"></i> ویرایش</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSingleQuestion('${q._id}')"><i class="bi bi-trash"></i> حذف</button>
+                                </div>
+                              </div>`;
                 questionListContainer.innerHTML += card;
             });
         }
@@ -251,7 +330,9 @@
         form.querySelector('[name="score"]').value = questionToEdit.score;
         form.querySelector('[name="type"]').value = questionToEdit.type;
         form.querySelector('[name="explanation"]').value = questionToEdit.explanation || '';
+         form.querySelector('[name="imageUrl"]').value = questionToEdit.imageUrl || '';
         typeSelector.dispatchEvent(new Event('change'));
+          document.getElementById('questionImage').value = '';
         setTimeout(() => {
             if (questionToEdit.type === 'multiple_choice') {
                 const optionInputs = form.querySelectorAll('input[name^="options"]');
@@ -285,6 +366,7 @@
     function resetFormForAdd() {
         const form = document.getElementById('add-question-form');
         form.reset();
+          document.getElementById('imageUrlInput').value = '';
         answerContainer.innerHTML = '<p class="text-center text-muted">لطفا نوع سوال را انتخاب کنید...</p>';
         const submitButton = form.querySelector('button[type="submit"]');
         submitButton.textContent = 'افزودن سوال به لیست';
@@ -296,3 +378,7 @@
     // --- INITIAL RENDER ---
     renderQuestionsList();
 </script>
+
+
+
+
