@@ -27,6 +27,11 @@ const UserSchema = new mongoose.Schema({
     subscriptionExpiresAt: { 
         type: Date 
     },
+     role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    },
   createdAt: {
     type: Date,
     default: Date.now,
