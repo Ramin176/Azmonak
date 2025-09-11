@@ -41,7 +41,6 @@ app.use('/api/quiz-attempts', require('./routes/quiz.js'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
-app.get('/api/about-us',require('./admin/about-us'));
 app.get('/', (req, res) => {
      res.send('API is running...');
 });

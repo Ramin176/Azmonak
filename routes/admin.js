@@ -8,7 +8,6 @@ const User = require('../models/User');
 const Course = require('../models/Course');
 const Category = require('../models/Category');
 const Question = require('../models/Question');
-const Settings = require('../models/Settings');
 // const QuestionType = require('../models/QuestionType'); // <-- مدل جدید
 // @route   GET /admin/about-us
 // @desc    Show the "About Us" management page
