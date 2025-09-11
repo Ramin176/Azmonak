@@ -8,6 +8,13 @@
             <!-- ستون اطلاعات پرداخت -->
             <div class="col-lg-5">
                 <div class="card h-100">
+                      <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">متن صفحه "درباره ما"</h5>
+                        <p class="small text-muted">این متن در صفحه "درباره ما" اپلیکیشن نمایش داده خواهد شد.</p>
+                        <textarea name="aboutUsText" class="form-control" rows="8"><%= settings.aboutUsText || '' %></textarea>
+                    </div>
+                </div>
                     <div class="card-body">
                         <h5 class="card-title">اطلاعات پرداخت</h5>
                         <div class="mb-3">
@@ -40,15 +47,10 @@
                             <i class="bi bi-plus-circle"></i> افزودن پلن جدید
                         </button>
                     </div>
+
                 </div>
             </div>
-            <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">متن صفحه "درباره ما"</h5>
-                        <p class="small text-muted">این متن در صفحه "درباره ما" اپلیکیشن نمایش داده خواهد شد.</p>
-                        <textarea name="aboutUsText" class="form-control" rows="8"><%= settings.aboutUsText || '' %></textarea>
-                    </div>
-                </div>
+          
         </div>
 
         <div class="mt-4">
