@@ -9,24 +9,7 @@ const Course = require('../models/Course');
 const Category = require('../models/Category');
 const Question = require('../models/Question');
 // const QuestionType = require('../models/QuestionType'); // <-- مدل جدید
-// @route   GET /admin/about-us
-// @desc    Show the "About Us" management page
-router.get('/about-us', checkAuth, async (req, res) => {
-    try {
-        // ما همچنان داده‌ها را از همان مدل Settings می‌خوانیم
-        let settings = await Settings.findOne({ singleton: 'main_settings' });
-        if (!settings) {
-            settings = {}; 
-        }
-        res.render('about-us', { // <-- به یک view جدید به نام about-us رندر می‌کنیم
-            title: 'مدیریت صفحه درباره ما',
-            settings: settings
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Server Error");
-    }
-});
+
 
 router.get('/login', (req, res) => {
     res.render('login');
@@ -163,7 +146,24 @@ router.get('/course/:id/questions', checkAuth, async (req, res) => {
         res.status(500).send("Server Error");
     }
 });
-
+// @route   GET /admin/about-us
+// @desc    Show the "About Us" management page
+router.get('/about-us', checkAuth, async (req, res) => {
+    try {
+        // ما همچنان داده‌ها را از همان مدل Settings می‌خوانیم
+        let settings = await Settings.findOne({ singleton: 'main_settings' });
+        if (!settings) {
+            settings = {}; 
+        }
+        res.render('about-us', { // <-- به یک view جدید به نام about-us رندر می‌کنیم
+            title: 'مدیریت صفحه درباره ما',
+            settings: settings
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Server Error");
+    }
+});
 // ... سایر مسیرها مثل login و logout که می‌توانند قبل از router.use(checkAuth) باشند
 // برای سادگی، فعلا فرض می‌کنیم همه مسیرها محافظت شده هستند.
 
