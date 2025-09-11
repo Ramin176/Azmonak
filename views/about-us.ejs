@@ -1,0 +1,55 @@
+<%- include('partials/header', { title: 'مدیریت صفحه درباره ما' }) %>
+
+<div class="container-fluid">
+    <h1 class="h2 mb-4">مدیریت محتوای صفحه "درباره ما"</h1>
+    <p class="text-muted">متنی که در اینجا وارد می‌کنید، مستقیماً در صفحه "درباره ما" اپلیکیشن موبایل نمایش داده خواهد شد.</p>
+
+    <div class="card">
+        <div class="card-body">
+            <form id="about-us-form">
+                <div class="mb-3">
+                    <label for="aboutUsText" class="form-label">محتوای صفحه</label>
+                    <textarea id="aboutUsText" name="aboutUsText" class="form-control" rows="15"><%= settings.aboutUsText || '' %></textarea>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary px-5">ذخیره تغییرات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+
+        document.getElementById('about-us-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const submitButton = this.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> در حال ذخیره...';
+
+            const aboutText = document.getElementById('aboutUsText').value;
+
+            try {
+                // ما به همان API قبلی (/api/settings) درخواست می‌فرستیم، اما فقط فیلد aboutUsText را آپدیت می‌کنیم
+                const res = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                    body: JSON.stringify({ aboutUsText: aboutText })
+                });
+
+                if (!res.ok) throw new Error('خطا در ذخیره اطلاعات');
+                
+                alert('محتوای "درباره ما" با موفقیت ذخیره شد!');
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'ذخیره تغییرات';
+            }
+        });
+    });
+</script>

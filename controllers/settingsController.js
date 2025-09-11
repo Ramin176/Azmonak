@@ -16,11 +16,15 @@ exports.getSettings = async (req, res) => {
 // آپدیت کردن تنظیمات (فقط برای ادمین)
 exports.updateSettings = async (req, res) => {
     try {
+        // از $set استفاده می‌کنیم تا فقط فیلدهای موجود در req.body آپدیت شوند
         const settings = await Settings.findOneAndUpdate(
             { singleton: 'main_settings' }, 
-            req.body, 
-            { new: true, upsert: true } // اگر وجود نداشت، بساز
+            { $set: req.body }, 
+            { new: true, upsert: true, runValidators: true }
         );
         res.json(settings);
-    } catch (err) { res.status(500).json({ msg: 'Server Error' }); }
+    } catch (err) { 
+        console.error("Update Settings Error:", err);
+        res.status(500).json({ msg: 'Server Error' }); 
+    }
 };
