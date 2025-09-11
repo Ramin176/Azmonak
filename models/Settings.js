@@ -14,7 +14,11 @@ const SettingsSchema = new mongoose.Schema({
     paymentInstructions: { type: String, default: 'دستورالعمل پرداخت را اینجا وارد کنید.' },
     telegramLink: { type: String, default: 'https://t.me/ramin0121' },
     accountNumber: { type: String, default: '659285329538' },
-    subscriptionPlans: [PlanSchema]
+    subscriptionPlans: [PlanSchema],
+     aboutUsText: { 
+        type: String, 
+        default: 'متن پیش‌فرض درباره ما در اینجا قرار می‌گیرد. شما می‌توانید این متن را از پنل مدیریت ویرایش کنید.' 
+    }
 });
 
 module.exports = mongoose.model('Settings', SettingsSchema);

@@ -25,7 +25,8 @@
                     </div>
                 </div>
             </div>
-
+   
+           
             <!-- ستون پلن‌های اشتراک -->
             <div class="col-lg-7">
                 <div class="card h-100">
@@ -41,6 +42,13 @@
                     </div>
                 </div>
             </div>
+            <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">متن صفحه "درباره ما"</h5>
+                        <p class="small text-muted">این متن در صفحه "درباره ما" اپلیکیشن نمایش داده خواهد شد.</p>
+                        <textarea name="aboutUsText" class="form-control" rows="8"><%= settings.aboutUsText || '' %></textarea>
+                    </div>
+                </div>
         </div>
 
         <div class="mt-4">
@@ -140,6 +148,7 @@
                 accountNumber: formData.get('accountNumber'),
                 telegramLink: formData.get('telegramLink'),
                 paymentInstructions: formData.get('paymentInstructions'),
+                 aboutUsText: formData.get('aboutUsText') 
             };
 
             try {

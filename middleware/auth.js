@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 module.exports = function (req, res, next) {
-  // ۱. توکن را از هدر درخواست بگیر
+  // ۱. توکن را از هدر درخواست بگی
   const token = req.header('x-auth-token');
 
   // ۲. چک کن آیا توکن وجود دارد
