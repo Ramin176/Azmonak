@@ -2,95 +2,95 @@ const User = require('../models/User');
 const PdfPrinter = require('pdfmake');
 const path = require('path');
 const fs = require('fs');
-const moment = require('moment-jalaali');
+const moment = require('moment-jalaali'); // برای تاریخ شمسی
 
-// داخل map جدول:
-new Date(u.createdAt)
-moment(u.createdAt).format('jYYYY/jMM/jDD')
-
-// @desc    Generate and download a PDF report of users with logo and styled table
-// @route   GET /api/reports/users/:status
 exports.downloadUsersReport = async (req, res) => {
     try {
-        const status = req.params.status === 'active'; // 'active' یا 'inactive'
-        
-        // ۱. گرفتن لیست کاربران از دیتابیس
+        const status = req.params.status === 'active';
+
+        // گرفتن کاربران
         const users = await User.find({ isActive: status })
             .select('name email subscriptionType createdAt')
             .lean();
 
-        // ۲. تعریف فونت‌ها
-     const fonts = {
-    Vazir: {
-        normal: path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf'),
-        bold: path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf') // همین فایل برای بولد هم
-    }
-};
-
+        // فونت‌ها
+        const fonts = {
+            Vazir: {
+                normal: path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf'),
+                bold: fs.existsSync(path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf'))
+                    ? path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf')
+                    : path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf')
+            }
+        };
 
         const printer = new PdfPrinter(fonts);
 
-        // ۳. آماده‌سازی محتوا
-       const logoPath = path.join(__dirname, '../uploads/photo_2025-09-11_14-01-25.png');
+        // لوگو
+        const logoPath = path.join(__dirname, '../uploads/photo_2025-09-11_14-01-25.png');
+        const contentArray = [];
 
+        if (fs.existsSync(logoPath)) {
+            contentArray.push({
+                image: logoPath,
+                width: 120,
+                alignment: 'center',
+                margin: [0, 0, 0, 20]
+            });
+        }
 
-        const docDefinition = {
-            pageSize: 'A4',
-            pageMargins: [40, 60, 40, 60], // چپ، بالا، راست، پایین
-            defaultStyle: {
-                font: 'Vazir',
-                fontSize: 12,
-                alignment: 'right'
-            },
-            content: [
-                {
-                    image: logoPath,
-                    width: 120,
-                    alignment: 'center',
-                    margin: [0, 0, 0, 20]
-                },
-               { text: `${status ? 'گزارش کاربران فعال' : 'گزارش کاربران غیرفعال'}`, style: 'header', alignment: 'center' }
-,
-                { text: '\n' },
-                {
-                   table: {
-    headerRows: 1,
-    widths: [80, '*', 80, 100], 
-    // ستون‌ها به ترتیب: نام، ایمیل، نوع اشتراک، تاریخ ثبت
-    body: [
-        [
+        // عنوان
+        contentArray.push({
+            text: status ? 'گزارش کاربران فعال' : 'گزارش کاربران غیرفعال',
+            style: 'header',
+            alignment: 'center'
+        });
+        contentArray.push({ text: '\n' });
+
+        // جدول کاربران
+        const tableBody = [];
+
+        // ردیف هدر
+        tableBody.push([
             { text: 'نام', bold: true, fillColor: '#f2f2f2' },
             { text: 'ایمیل', bold: true, fillColor: '#f2f2f2' },
             { text: 'نوع اشتراک', bold: true, fillColor: '#f2f2f2' },
             { text: 'تاریخ ثبت نام', bold: true, fillColor: '#f2f2f2' }
-        ],
-        ...users.map(u => [
-            { text: u.name, noWrap: false },
-            { text: u.email, noWrap: false },
-            { text: u.subscriptionType || 'free', noWrap: false },
-            { text: new Date(u.createdAt).toLocaleDateString('fa-IR'), noWrap: false }
-        ])
-    ]
-},
+        ]);
 
-                    layout: {
-                        fillColor: function (rowIndex, node, columnIndex) {
-                            return rowIndex % 2 === 0 ? null : '#f9f9f9';
-                        },
-                        hLineWidth: function () { return 0.5; },
-                        vLineWidth: function () { return 0.5; },
-                        hLineColor: function () { return '#ddd'; },
-                        vLineColor: function () { return '#ddd'; },
-                    },
-                    margin: [0, 10, 0, 0]
-                }
-            ],
-            styles: {
-                header: { fontSize: 20, bold: true }
-            }
+        // ردیف‌های داده
+        users.forEach(user => {
+            tableBody.push([
+                { text: user.name, noWrap: false },
+                { text: user.email, noWrap: false },
+                { text: user.subscriptionType || 'free', noWrap: false },
+                { text: moment(user.createdAt).format('jYYYY/jMM/jDD'), noWrap: false }
+            ]);
+        });
+
+        contentArray.push({
+            table: {
+                headerRows: 1,
+                widths: [80, '*', 80, 100],
+                body: tableBody
+            },
+            layout: {
+                fillColor: (rowIndex) => rowIndex % 2 === 0 ? null : '#f9f9f9',
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0.5,
+                hLineColor: () => '#ddd',
+                vLineColor: () => '#ddd'
+            },
+            margin: [0, 10, 0, 0]
+        });
+
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [40, 60, 40, 60],
+            defaultStyle: { font: 'Vazir', fontSize: 12, alignment: 'right' },
+            content: contentArray,
+            styles: { header: { fontSize: 20, bold: true } }
         };
 
-        // ۴. ایجاد PDF و ارسال به کاربر
         const pdfDoc = printer.createPdfKitDocument(docDefinition);
 
         const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
