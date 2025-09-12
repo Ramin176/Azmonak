@@ -9,37 +9,24 @@ function reverseText(text) {
 }
 
 exports.downloadUsersReport = async (req, res) => {
-    const doc = new PDFDocument({ margin: 30, size: 'A4' }); // doc را خارج از try/catch تعریف کنید
-    let errorOccurred = false;
-
-    // مدیریت خطاها در جریان PDF
-    doc.on('error', (err) => {
-        console.error("PDFDoc Stream Error:", err);
-        errorOccurred = true; // نشانگر خطا را تنظیم کنید
-        if (!res.headersSent) {
-            res.status(500).send("Error generating PDF stream.");
-        }
-        // اگر جریان به دلیل خطا بسته شد، نیاز به doc.end() دستی در اینجا نیست، زیرا خودش باعث بسته شدن می‌شود
-    });
-
-    // مهم: مطمئن شوید که res.end() فقط زمانی فراخوانی می‌شود که doc به طور کامل تمام شده باشد
-    doc.on('end', () => {
-        if (!res.headersSent && !errorOccurred) { // اگر هنوز هدر ارسال نشده و خطایی رخ نداده
-            // res.end() به صورت خودکار توسط doc.pipe(res) فراخوانی می‌شود
-            // اما برای اطمینان بیشتر، می‌توانیم آن را در اینجا مدیریت کنیم اگر بخواهیم
-            // console.log("PDF stream ended. Response should be finished.");
-        }
-    });
-
     try {
         const status = req.params.status === 'active';
         const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
 
-        const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
-        res.setHeader('Content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
-        res.setHeader('Content-type', 'application/pdf');
-
-        doc.pipe(res); // شروع به ارسال داده به پاسخ
+        const doc = new PDFDocument({ margin: 30, size: 'A4' });
+        
+        // یک آرایه برای نگهداری داده‌های PDF
+        let buffers = [];
+        doc.on('data', buffers.push.bind(buffers)); // هر قطعه داده را به آرایه اضافه می‌کند
+        doc.on('end', () => {
+            const pdfBuffer = Buffer.concat(buffers); // همه قطعات را به یک Buffer تبدیل می‌کند
+            const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
+            
+            res.setHeader('Content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+            res.setHeader('Content-type', 'application/pdf');
+            res.send(pdfBuffer); // ارسال Buffer به عنوان پاسخ
+            console.log("PDF generated and sent as buffer.");
+        });
 
         const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
         if (!fs.existsSync(fontPath)) {
@@ -82,18 +69,16 @@ exports.downloadUsersReport = async (req, res) => {
             },
         });
 
-        doc.end(); // داکیومنت را پس از اتمام جدول‌بندی به پایان می‌رساند
-        console.log("PDF generation initiated and doc.end() called.");
+        doc.end(); // این باعث فراخوانی event 'end' می‌شود
         
     } catch (err) {
-        console.error("Report Generation Catch Error:", err);
-        errorOccurred = true; // نشانگر خطا را تنظیم کنید
+        console.error("Report Generation Error (Buffer Method):", err);
         if (!res.headersSent) {
-            res.status(500).send("Could not generate report due to an internal error.");
+            res.status(500).send("Could not generate report.");
         }
         // اگر خطایی رخ داد، مطمئن شوید داکیومنت بسته می‌شود
-        if (!doc._ended) { // اگر هنوز بسته نشده است
-            doc.end();
+        if (doc && !doc._ended) {
+            doc.end(); // این باعث فراخوانی event 'end' می‌شود
         }
     }
 };
