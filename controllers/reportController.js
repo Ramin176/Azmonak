@@ -15,12 +15,13 @@ exports.downloadUsersReport = async (req, res) => {
             .lean();
 
         // ۲. تعریف فونت‌ها
-        const fonts = {
-            Vazir: {
-                normal: path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf'),
-                bold: path.join(__dirname, '../fonts/Vazirmatn-Bold.ttf')
-            }
-        };
+     const fonts = {
+    Vazir: {
+        normal: path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf'),
+        bold: path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf') // همین فایل برای بولد هم
+    }
+};
+
 
         const printer = new PdfPrinter(fonts);
 
