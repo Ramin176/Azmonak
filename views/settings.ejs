@@ -43,6 +43,14 @@
                 </div>
             </div>
           
+
+            <div class="card mt-4">
+    <div class="card-body">
+        <h5 class="card-title">پیام برای کاربران مسدود شده</h5>
+        <p class="small text-muted">این پیام به کاربرانی که حسابشان را غیرفعال می‌کنید، نمایش داده می‌شود.</p>
+        <textarea name="deactivatedUserMessage" class="form-control" rows="4"><%= settings.deactivatedUserMessage || '' %></textarea>
+    </div>
+</div>
         </div>
 
         <div class="mt-4">
@@ -142,6 +150,7 @@
                 accountNumber: formData.get('accountNumber'),
                 telegramLink: formData.get('telegramLink'),
                 paymentInstructions: formData.get('paymentInstructions'),
+                 deactivatedUserMessage: document.querySelector('[name="deactivatedUserMessage"]').value
              
             };
 

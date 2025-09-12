@@ -18,6 +18,10 @@ const SettingsSchema = new mongoose.Schema({
      aboutUsText: { 
         type: String, 
         default: 'متن پیش‌فرض درباره ما در اینجا قرار می‌گیرد. شما می‌توانید این متن را از پنل مدیریت ویرایش کنید.' 
+    },
+     deactivatedUserMessage: { 
+        type: String, 
+        default: 'حساب کاربری شما به دلیل نقض قوانین غیرفعال شده است. لطفا با پشتیبانی در تلگرام (@AzmoonakSupport) تماس بگیرید.' 
     }
 });
 

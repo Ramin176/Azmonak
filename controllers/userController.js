@@ -39,12 +39,11 @@ exports.activateSubscription = async (req, res) => {
             user.subscriptionExpiresAt = null;
         } else {
             switch(plan) {
-                case 'weekly': expiryDate.setDate(expiryDate.getDate() + 7); break;
-                case 'monthly': expiryDate.setMonth(expiryDate.getMonth() + 1); break;
-                case 'quarterly': expiryDate.setMonth(expiryDate.getMonth() + 3); break;
-                case 'half_yearly': expiryDate.setMonth(expiryDate.getMonth() + 6); break;
-                case 'yearly': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
-                 case 'four_minutes_test':
+                case 'one_month': expiryDate.setMonth(expiryDate.getMonth() + 1); break;
+    case 'two_months': expiryDate.setMonth(expiryDate.getMonth() + 2); break;
+    case 'three_months': expiryDate.setMonth(expiryDate.getMonth() + 3); break;
+    case 'six_months': expiryDate.setMonth(expiryDate.getMonth() + 6); break;
+    case 'one_year': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
                     expiryDate.setMinutes(expiryDate.getMinutes() + 4);
                     break;
                 default: return res.status(400).json({ msg: 'Invalid plan' });
