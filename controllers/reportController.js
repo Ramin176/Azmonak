@@ -69,7 +69,7 @@ exports.downloadUsersReport = async (req, res) => {
             { text: new Date(u.createdAt).toLocaleDateString('fa-IR'), noWrap: false }
         ])
     ]
-}
+},
 
                     layout: {
                         fillColor: function (rowIndex, node, columnIndex) {
