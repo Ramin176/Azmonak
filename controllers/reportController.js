@@ -40,7 +40,7 @@ exports.downloadUsersReport = async (req, res) => {
 
         // عنوان
         contentArray.push({
-            text: status ? 'گزارش کاربران فعال' : 'گزارش کاربران غیرفعال',
+            text: status ? ' فعال کاربران گزارش' : 'غیرفعال کاربران گزارش',
             style: 'header',
             alignment: 'center',
               direction: 'rtl'
