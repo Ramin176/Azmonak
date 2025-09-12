@@ -2,6 +2,11 @@ const User = require('../models/User');
 const PdfPrinter = require('pdfmake');
 const path = require('path');
 const fs = require('fs');
+const moment = require('moment-jalaali');
+
+// داخل map جدول:
+new Date(u.createdAt)
+moment(u.createdAt).format('jYYYY/jMM/jDD')
 
 // @desc    Generate and download a PDF report of users with logo and styled table
 // @route   GET /api/reports/users/:status
@@ -44,11 +49,8 @@ exports.downloadUsersReport = async (req, res) => {
                     alignment: 'center',
                     margin: [0, 0, 0, 20]
                 },
-                { 
-                    text: `گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, 
-                    style: 'header', 
-                    alignment: 'center' 
-                },
+               { text: `${status ? 'گزارش کاربران فعال' : 'گزارش کاربران غیرفعال'}`, style: 'header', alignment: 'center' }
+,
                 { text: '\n' },
                 {
                    table: {
