@@ -1,18 +1,9 @@
-const User = require('../models/User');
-const PDFDocument = require('pdfkit-table');
-const path = require('path');
-const fs = require('fs');
-
-// تابع کمکی برای برعکس کردن متن فارسی (برای نمایش صحیح در pdfkit)
-function reverseText(text) {
-    if (!text) return '';
-    return text.split('').reverse().join('');
-}
-
 exports.downloadUsersReport = async (req, res) => {
     try {
         const status = req.params.status === 'active';
-        const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
+        const users = await User.find({ isActive: status })
+            .select('name email subscriptionType createdAt')
+            .lean();
 
         const doc = new PDFDocument({ margin: 30, size: 'A4' });
         
@@ -43,7 +34,7 @@ exports.downloadUsersReport = async (req, res) => {
         
         const table = {
             headers: [
-                { label: reverseText("نام"), property: 'name', width: 120, renderer: (value) => value },
+                { label: reverseText("نام"), property: 'name', width: 120 },
                 { label: reverseText("ایمیل"), property: 'email', width: 150 },
                 { label: reverseText("نوع اشتراک"), property: 'subscriptionType', width: 80 },
                 { label: reverseText("تاریخ ثبت نام"), property: 'createdAt', width: '*' },
@@ -51,26 +42,17 @@ exports.downloadUsersReport = async (req, res) => {
             datas: tableData,
         };
         
-        // --- فراخوانی صحیح doc.table با استفاده از Promise ---
-        const generateTable = async () => {
-            await doc.table(table, {
-                prepareHeader: () => doc.font('Vazir').fontSize(11),
-                prepareRow: (row, indexColumn, indexRow, rectRow) => {
-                    doc.font('Vazir').fontSize(9);
-                },
-            });
-        };
-
-        generateTable().then(() => {
-            doc.end();
-            console.log("PDF generated and stream ended successfully.");
-        }).catch(err => {
-            console.error("Error during table generation:", err);
-            if (!res.headersSent) {
-               res.status(500).send("Could not generate table in PDF.");
-            }
+        // --- استفاده از await برای جدول ---
+        await doc.table(table, {
+            prepareHeader: () => doc.font('Vazir').fontSize(11),
+            prepareRow: (row, indexColumn, indexRow, rectRow) => {
+                doc.font('Vazir').fontSize(9);
+            },
         });
-        
+
+        doc.end();
+        console.log("PDF generated and stream ended successfully.");
+
     } catch (err) {
         console.error("Report Generation Error:", err);
         if (!res.headersSent) {
