@@ -1,62 +1,98 @@
 const User = require('../models/User');
-const PDFDocument = require('pdfkit-table');
+const PdfPrinter = require('pdfmake');
+const path = require('path');
+const fs = require('fs');
 
-// @desc    Generate and download a PDF report of users
+// @desc    Generate and download a PDF report of users with logo and styled table
 // @route   GET /api/reports/users/:status
 exports.downloadUsersReport = async (req, res) => {
     try {
-        const status = req.params.status === 'active'; // 'active' or 'inactive'
+        const status = req.params.status === 'active'; // 'active' یا 'inactive'
         
         // ۱. گرفتن لیست کاربران از دیتابیس
-        const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
+        const users = await User.find({ isActive: status })
+            .select('name email subscriptionType createdAt')
+            .lean();
 
-        // ۲. ساخت یک سند PDF جدید
-        const doc = new PDFDocument({ margin: 30, size: 'A4' });
-
-        // تنظیم هدرها برای دانلود فایل
-        const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
-        res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
-        res.setHeader('Content-type', 'application/pdf');
-
-        // اتصال خروجی PDF به response
-        doc.pipe(res);
-
-        // --- ۳. طراحی محتوای PDF ---
-        
-        // اضافه کردن فونت فارسی (باید فایل فونت را در پروژه داشته باشید)
-        // فرض می‌کنیم یک پوشه fonts با فایل Vazirmatn.ttf دارید
-        doc.registerFont('Vazir', 'fonts/Vazirmatn-Regular.ttf');
-        doc.font('Vazir');
-
-        // عنوان گزارش
-        doc.fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
-        doc.moveDown();
-
-        // ساخت جدول
-        const table = {
-            title: "لیست کاربران",
-            headers: ["نام", "ایمیل", "نوع اشتراک", "تاریخ ثبت نام"],
-            // تبدیل داده‌های کاربران به فرمت مورد نیاز جدول
-            rows: users.map(user => [
-                user.name,
-                user.email,
-                user.subscriptionType || 'free',
-                new Date(user.createdAt).toLocaleDateString('fa-IR')
-            ]),
+        // ۲. تعریف فونت‌ها
+        const fonts = {
+            Vazir: {
+                normal: path.join(__dirname, '../fonts/Vazirmatn-Regular.ttf'),
+                bold: path.join(__dirname, '../fonts/Vazirmatn-Bold.ttf')
+            }
         };
-        
-        // کشیدن جدول در سند
-        await doc.table(table, {
-            prepareHeader: () => doc.font('Vazir').fontSize(12),
-            prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
-                doc.font('Vazir').fontSize(10);
-            },
-        });
-        
-        // ------------------------
 
-        // ۴. نهایی کردن و ارسال PDF
-        doc.end();
+        const printer = new PdfPrinter(fonts);
+
+        // ۳. آماده‌سازی محتوا
+        const logoPath = path.join(__dirname, '../uplouds/photo_2025-09-11_14-01-25.png');
+
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [40, 60, 40, 60], // چپ، بالا، راست، پایین
+            defaultStyle: {
+                font: 'Vazir',
+                fontSize: 12,
+                alignment: 'right'
+            },
+            content: [
+                {
+                    image: logoPath,
+                    width: 120,
+                    alignment: 'center',
+                    margin: [0, 0, 0, 20]
+                },
+                { 
+                    text: `گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, 
+                    style: 'header', 
+                    alignment: 'center' 
+                },
+                { text: '\n' },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['*', '*', '*', '*'],
+                        body: [
+                            [
+                                { text: 'نام', bold: true, fillColor: '#f2f2f2' },
+                                { text: 'ایمیل', bold: true, fillColor: '#f2f2f2' },
+                                { text: 'نوع اشتراک', bold: true, fillColor: '#f2f2f2' },
+                                { text: 'تاریخ ثبت نام', bold: true, fillColor: '#f2f2f2' }
+                            ],
+                            ...users.map(u => [
+                                u.name,
+                                u.email,
+                                u.subscriptionType || 'free',
+                                new Date(u.createdAt).toLocaleDateString('fa-IR')
+                            ])
+                        ]
+                    },
+                    layout: {
+                        fillColor: function (rowIndex, node, columnIndex) {
+                            return rowIndex % 2 === 0 ? null : '#f9f9f9';
+                        },
+                        hLineWidth: function () { return 0.5; },
+                        vLineWidth: function () { return 0.5; },
+                        hLineColor: function () { return '#ddd'; },
+                        vLineColor: function () { return '#ddd'; },
+                    },
+                    margin: [0, 10, 0, 0]
+                }
+            ],
+            styles: {
+                header: { fontSize: 20, bold: true }
+            }
+        };
+
+        // ۴. ایجاد PDF و ارسال به کاربر
+        const pdfDoc = printer.createPdfKitDocument(docDefinition);
+
+        const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Type', 'application/pdf');
+
+        pdfDoc.pipe(res);
+        pdfDoc.end();
 
     } catch (err) {
         console.error("Report Generation Error:", err);
