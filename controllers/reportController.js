@@ -54,7 +54,7 @@ exports.downloadUsersReport = async (req, res) => {
         tableBody.push([
             { text: 'نام', bold: true, fillColor: '#f2f2f2' },
             { text: 'ایمیل', bold: true, fillColor: '#f2f2f2' },
-            { text: 'نوع اشتراک', bold: true, fillColor: '#f2f2f2' },
+            { text: 'اشتراک نوع', bold: true, fillColor: '#f2f2f2' },
             { text: 'نام ثبت تاریخ', bold: true, fillColor: '#f2f2f2' }
         ]);
 
