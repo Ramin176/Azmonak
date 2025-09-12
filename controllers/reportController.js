@@ -51,24 +51,26 @@ exports.downloadUsersReport = async (req, res) => {
                 },
                 { text: '\n' },
                 {
-                    table: {
-                        headerRows: 1,
-                        widths: ['*', '*', '*', '*'],
-                        body: [
-                            [
-                                { text: 'نام', bold: true, fillColor: '#f2f2f2' },
-                                { text: 'ایمیل', bold: true, fillColor: '#f2f2f2' },
-                                { text: 'نوع اشتراک', bold: true, fillColor: '#f2f2f2' },
-                                { text: 'تاریخ ثبت نام', bold: true, fillColor: '#f2f2f2' }
-                            ],
-                            ...users.map(u => [
-                                u.name,
-                                u.email,
-                                u.subscriptionType || 'free',
-                                new Date(u.createdAt).toLocaleDateString('fa-IR')
-                            ])
-                        ]
-                    },
+                   table: {
+    headerRows: 1,
+    widths: [80, '*', 80, 100], 
+    // ستون‌ها به ترتیب: نام، ایمیل، نوع اشتراک، تاریخ ثبت
+    body: [
+        [
+            { text: 'نام', bold: true, fillColor: '#f2f2f2' },
+            { text: 'ایمیل', bold: true, fillColor: '#f2f2f2' },
+            { text: 'نوع اشتراک', bold: true, fillColor: '#f2f2f2' },
+            { text: 'تاریخ ثبت نام', bold: true, fillColor: '#f2f2f2' }
+        ],
+        ...users.map(u => [
+            { text: u.name, noWrap: false },
+            { text: u.email, noWrap: false },
+            { text: u.subscriptionType || 'free', noWrap: false },
+            { text: new Date(u.createdAt).toLocaleDateString('fa-IR'), noWrap: false }
+        ])
+    ]
+}
+
                     layout: {
                         fillColor: function (rowIndex, node, columnIndex) {
                             return rowIndex % 2 === 0 ? null : '#f9f9f9';
