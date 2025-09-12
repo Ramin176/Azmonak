@@ -1,3 +1,13 @@
+const User = require('../models/User');
+const PDFDocument = require('pdfkit-table');
+const path = require('path');
+const fs = require('fs');
+
+// تابع کمکی برای برعکس کردن متن فارسی (برای نمایش صحیح در pdfkit)
+function reverseText(text) {
+    if (!text) return '';
+    return text.split('').reverse().join('');
+}
 exports.downloadUsersReport = async (req, res) => {
     try {
         const status = req.params.status === 'active';
@@ -60,3 +70,4 @@ exports.downloadUsersReport = async (req, res) => {
         }
     }
 };
+        
