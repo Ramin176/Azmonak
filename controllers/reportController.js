@@ -16,13 +16,21 @@ exports.downloadUsersReport = async (req, res) => {
         res.setHeader('Content-type', 'application/pdf');
         doc.pipe(res);
 
-        const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
+         const fontPath = path.join(__dirname, '..', 'fonts', 'Vazirmatn-Regular.ttf');
         doc.registerFont('Vazir', fontPath);
+        // const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
+        // doc.registerFont('Vazir', fontPath);
         
-        const logoPath = path.resolve('./public/uploads/photo_2025-09-11_14-01-25.jpg'); 
-        if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, 30, 30, { width: 70 });
-        }
+        // const logoPath = path.resolve('./public/uploads/photo_2025-09-11_14-01-25.jpg'); 
+        // if (fs.existsSync(logoPath)) {
+        //     doc.image(logoPath, 30, 30, { width: 70 });
+        // }
+
+        const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.jpg');
+        doc.image(logoPath, 30, 30, { width: 70 });
+        doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
+        doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
+        doc.moveDown(3);
 
         doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
         doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
