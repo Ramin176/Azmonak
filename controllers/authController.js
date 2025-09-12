@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
+const { checkSubscriptionStatus } = require('../utils/subscriptionHelper');
+
 // @desc    Register a new user
 // @route   POST /api/auth/register
 exports.register = async (req, res) => {
