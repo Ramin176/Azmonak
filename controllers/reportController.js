@@ -5,7 +5,6 @@ const fs = require('fs');
 
 // تابع کمکی برای برعکس کردن متن فارسی (برای نمایش صحیح در pdfkit)
 function reverseText(text) {
-    if (!text) return '';
     return text.split('').reverse().join('');
 }
 
@@ -21,19 +20,19 @@ exports.downloadUsersReport = async (req, res) => {
         res.setHeader('Content-type', 'application/pdf');
         doc.pipe(res);
 
+        // ثبت فونت فارسی
         const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
         if (!fs.existsSync(fontPath)) throw new Error('Font file not found');
         doc.registerFont('Vazir', fontPath);
         
-        const logoPath = path.resolve('./public/logo.png');
-        if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, { fit: [80, 80], align: 'left', valign: 'top' });
-        }
-        
-        doc.font('Vazir').fontSize(20).text(reverseText(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`), { align: 'center' });
-        doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR-u-nu-latn'), { align: 'center' });
-        doc.moveDown(2);
+        // --- هدر گزارش ---
+        const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.png');
+        doc.image(logoPath, 30, 30, { width: 70 });
+        doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
+        doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
+        doc.moveDown(3);
 
+        // --- جدول ---
         const tableData = users.map(user => ({
             name: reverseText(user.name),
             email: user.email,
@@ -43,33 +42,24 @@ exports.downloadUsersReport = async (req, res) => {
         
         const table = {
             headers: [
-                { label: reverseText("نام"), property: 'name', width: 120, renderer: (value) => value },
+                { label: reverseText("نام"), property: 'name', width: 120 },
                 { label: reverseText("ایمیل"), property: 'email', width: 150 },
                 { label: reverseText("نوع اشتراک"), property: 'subscriptionType', width: 80 },
                 { label: reverseText("تاریخ ثبت نام"), property: 'createdAt', width: '*' },
             ],
             datas: tableData,
         };
-        
-        // --- فراخوانی صحیح doc.table با استفاده از Promise ---
-        const generateTable = async () => {
-            await doc.table(table, {
-                prepareHeader: () => doc.font('Vazir').fontSize(11),
-                prepareRow: (row, indexColumn, indexRow, rectRow) => {
-                    doc.font('Vazir').fontSize(9);
-                },
-            });
-        };
 
-        generateTable().then(() => {
-            doc.end();
-            console.log("PDF generated and stream ended successfully.");
-        }).catch(err => {
-            console.error("Error during table generation:", err);
-            if (!res.headersSent) {
-               res.status(500).send("Could not generate table in PDF.");
-            }
+        // فراخوانی doc.table و پایان‌دهی در صورت موفقیت
+        await doc.table(table, {
+            prepareHeader: () => doc.font('Vazir').fontSize(11),
+            prepareRow: (row, indexColumn, indexRow, rectRow) => {
+                doc.font('Vazir').fontSize(9);
+            },
         });
+        
+        doc.end();
+        console.log("PDF generated and stream ended successfully.");
         
     } catch (err) {
         console.error("Report Generation Error:", err);
