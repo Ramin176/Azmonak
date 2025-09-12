@@ -121,21 +121,23 @@ exports.toggleUserStatus = async (req, res) => {
 
 // @desc    Get current logged in user
 // @route   GET /api/auth/me
+
 exports.getMe = async (req, res) => {
     try {
-        // req.user.id توسط authMiddleware از توکن استخراج شده است
-        const user = await User.findById(req.user.id).select('-password');
+        let user = await User.findById(req.user.id).select('-password'); // از let استفاده کردیم
         if (!user) {
             return res.status(404).json({ msg: 'User not found' });
         }
-          user = await checkSubscriptionStatus(user);
+
+        // آپدیت وضعیت اشتراک
+        user = await checkSubscriptionStatus(user);
+
         res.json(user);
     } catch (err) {
         console.error("!!! ERROR in getMe controller:", err.message);
         res.status(500).json({ msg: 'Server Error' });
     }
 };
-
 // @desc    Forgot password
 exports.forgotPassword = async (req, res) => {
     const { email } = req.body;

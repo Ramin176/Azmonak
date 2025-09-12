@@ -101,22 +101,21 @@ router.get('/users', checkAuth, async (req, res) => {
                 { email: { $regex: search, $options: 'i' } }
             ];
         }
+
         if (status && status !== '') {
             query.isActive = (status === 'active');
         }
 
-        // ۱. ابتدا کاربران را از دیتابیس می‌خوانیم
-        const usersFromDb = await User.find(query).select('-password');
+        let usersFromDb = await User.find(query).select('-password');
 
-        // ۲. حالا وضعیت اشتراک هر کاربر را چک و در صورت نیاز آپدیت می‌کنیم
+        // آپدیت وضعیت اشتراک
         const updatedUsers = await Promise.all(
             usersFromDb.map(user => checkSubscriptionStatus(user))
         );
-        
-        // ۳. در نهایت، لیست آپدیت شده را به صفحه ارسال می‌کنیم
+
         res.render('users', {
             title: 'مدیریت کاربران',
-            users: updatedUsers, // <-- از متغیر جدید و آپدیت شده استفاده می‌کنیم
+            users: updatedUsers,
             search: search || '',
             status: status || ''
         });
