@@ -1,4 +1,4 @@
-// const User = require('../models/User');
+ const User = require('../models/User');
 
 // const checkSubscriptionStatus = async (user) => {
 //     // اگر کاربر Premium است و تاریخ انقضای او گذشته است
@@ -22,3 +22,5 @@ const checkSubscriptionStatus = async (user) => {
     }
     return user; // خود آبجکت Mongoose را برمی‌گردانیم
 };
+
+module.exports = { checkSubscriptionStatus };
