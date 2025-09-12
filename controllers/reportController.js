@@ -8,28 +8,44 @@ function reverseText(text) {
     if (!text) return '';
     return text.split('').reverse().join('');
 }
+
 exports.downloadUsersReport = async (req, res) => {
     try {
         const status = req.params.status === 'active';
-        const users = await User.find({ isActive: status })
-            .select('name email subscriptionType createdAt')
-            .lean();
+        const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
 
         const doc = new PDFDocument({ margin: 30, size: 'A4' });
         
         const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
         res.setHeader('Content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
         res.setHeader('Content-type', 'application/pdf');
-        doc.pipe(res);
+
+        // خطاها را در جریان پاسخ مدیریت کنید
+        doc.on('error', (err) => {
+            console.error("PDFDoc Error:", err);
+            if (!res.headersSent) {
+                res.status(500).send("Error generating PDF.");
+            }
+            doc.end(); // مطمئن شوید داکیومنت بسته می‌شود
+        });
+
+        doc.pipe(res); // شروع به ارسال داده به پاسخ
 
         const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
-        if (!fs.existsSync(fontPath)) throw new Error('Font file not found');
+        if (!fs.existsSync(fontPath)) {
+            throw new Error('Font file not found at: ' + fontPath);
+        }
         doc.registerFont('Vazir', fontPath);
         
-        const logoPath = path.resolve('./uploads/photo_2025-09-11_14-01-25.png');
+        // --- مسیر لوگو اینجا اصلاح شد ---
+        const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.png');
         if (fs.existsSync(logoPath)) {
             doc.image(logoPath, { fit: [80, 80], align: 'left', valign: 'top' });
+        } else {
+            console.warn('Logo file not found at:', logoPath);
+            // می‌توانید در اینجا یک لوگوی جایگزین یا متن جایگزین قرار دهید
         }
+        // --- پایان اصلاح مسیر لوگو ---
         
         doc.font('Vazir').fontSize(20).text(reverseText(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`), { align: 'center' });
         doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR-u-nu-latn'), { align: 'center' });
@@ -44,7 +60,7 @@ exports.downloadUsersReport = async (req, res) => {
         
         const table = {
             headers: [
-                { label: reverseText("نام"), property: 'name', width: 120 },
+                { label: reverseText("نام"), property: 'name', width: 120, renderer: (value) => value },
                 { label: reverseText("ایمیل"), property: 'email', width: 150 },
                 { label: reverseText("نوع اشتراک"), property: 'subscriptionType', width: 80 },
                 { label: reverseText("تاریخ ثبت نام"), property: 'createdAt', width: '*' },
@@ -52,7 +68,6 @@ exports.downloadUsersReport = async (req, res) => {
             datas: tableData,
         };
         
-        // --- استفاده از await برای جدول ---
         await doc.table(table, {
             prepareHeader: () => doc.font('Vazir').fontSize(11),
             prepareRow: (row, indexColumn, indexRow, rectRow) => {
@@ -61,13 +76,15 @@ exports.downloadUsersReport = async (req, res) => {
         });
 
         doc.end();
-        console.log("PDF generated and stream ended successfully.");
-
+        console.log("PDF generation initiated.");
+        
     } catch (err) {
         console.error("Report Generation Error:", err);
         if (!res.headersSent) {
             res.status(500).send("Could not generate report.");
         }
+        if (doc && !doc._ended) {
+            doc.end();
+        }
     }
 };
-        
