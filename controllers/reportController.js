@@ -55,7 +55,7 @@ exports.downloadUsersReport = async (req, res) => {
             { text: 'نام', bold: true, fillColor: '#f2f2f2' },
             { text: 'ایمیل', bold: true, fillColor: '#f2f2f2' },
             { text: 'نوع اشتراک', bold: true, fillColor: '#f2f2f2' },
-            { text: 'تاریخ ثبت نام', bold: true, fillColor: '#f2f2f2' }
+            { text: 'تاریخ نام ثبت', bold: true, fillColor: '#f2f2f2' }
         ]);
 
         // ردیف‌های داده
