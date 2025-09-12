@@ -25,7 +25,8 @@ exports.downloadUsersReport = async (req, res) => {
         const printer = new PdfPrinter(fonts);
 
         // ۳. آماده‌سازی محتوا
-        const logoPath = path.join(__dirname, '../uplouds/photo_2025-09-11_14-01-25.png');
+       const logoPath = path.join(__dirname, '../uploads/photo_2025-09-11_14-01-25.png');
+
 
         const docDefinition = {
             pageSize: 'A4',
