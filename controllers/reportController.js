@@ -2,6 +2,7 @@ const User = require('../models/User');
 const PDFDocument = require('pdfkit-table');
 const path = require('path');
 const fs = require('fs'); 
+
 exports.downloadUsersReport = async (req, res) => {
     try {
         const status = req.params.status === 'active';
@@ -16,55 +17,55 @@ exports.downloadUsersReport = async (req, res) => {
         res.setHeader('Content-type', 'application/pdf');
         doc.pipe(res);
 
-         const fontPath = path.join(__dirname, '..', 'fonts', 'Vazirmatn-Regular.ttf');
-        doc.registerFont('Vazir', fontPath);
-        // const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
-        // doc.registerFont('Vazir', fontPath);
-        
-        // const logoPath = path.resolve('./public/uploads/photo_2025-09-11_14-01-25.jpg'); 
-        // if (fs.existsSync(logoPath)) {
-        //     doc.image(logoPath, 30, 30, { width: 70 });
-        // }
+        // --- فونت فارسی ---
+        const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
+        if (fs.existsSync(fontPath)) {
+            doc.registerFont('Vazir', fontPath);
+            doc.font('Vazir');
+        } else {
+            console.error("Font not found:", fontPath);
+        }
 
-        const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.jpg');
-        doc.image(logoPath, 30, 30, { width: 70 });
+        // --- لوگو در بالا ---
+        const logoPath = path.resolve('./public/uploads/photo_2025-09-11_14-01-25.jpg'); 
+        if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, 30, 30, { width: 70 });
+        }
+
+        // --- عنوان ---
         doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
         doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
         doc.moveDown(3);
 
-        doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
-        doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
-        doc.moveDown(3);
-
-
-        // --- تغییر اصلی: تبدیل آبجکت‌ها به آرایه‌ای از آرایه‌ها ---
+        // --- آماده‌سازی داده‌ها ---
         const tableRows = users.map(user => [
             new Date(user.createdAt).toLocaleDateString('fa-IR'),
             user.subscriptionType || 'free',
             user.email,
             user.name
         ]);
-        // ----------------------------------------------------
 
         const table = {
             headers: ["تاریخ ثبت نام", "نوع اشتراک", "ایمیل", "نام"],
-            rows: tableRows, // <-- حالا از آرایه تبدیل شده استفاده می‌کنیم
+            rows: tableRows,
         };
 
-        // فراخوانی بدون await
-        doc.table(table, {
+        // --- جدول ---
+        await doc.table(table, {
             rtl: true,
-            prepareHeader: () => doc.font('Vazir').fontSize(11).fillColor('white'),
+            prepareHeader: (columns, rect) => {
+                // پس‌زمینه هدر
+                doc.addBackground(rect, '#008080', 1);
+                // متن هدر
+                doc.font('Vazir').fontSize(11).fillColor('white');
+            },
             prepareRow: (row, indexColumn, indexRow, rectRow) => {
                 doc.font('Vazir').fontSize(9).fillColor('black');
-                // رنگی کردن یکی در میان ردیف‌ها
                 if (indexRow % 2 === 0) doc.addBackground(rectRow, '#f5f5f5', 0.9);
-            },
-            // استایل بهتر برای هدر
-            headerColor: '#008080', // رنگ Teal
-            headerOpacity: 1,
+            }
         });
 
+        // پایان PDF
         doc.end();
 
     } catch (err) {
