@@ -44,6 +44,9 @@ exports.activateSubscription = async (req, res) => {
                 case 'quarterly': expiryDate.setMonth(expiryDate.getMonth() + 3); break;
                 case 'half_yearly': expiryDate.setMonth(expiryDate.getMonth() + 6); break;
                 case 'yearly': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
+                 case 'four_minutes_test':
+                    expiryDate.setMinutes(expiryDate.getMinutes() + 4);
+                    break;
                 default: return res.status(400).json({ msg: 'Invalid plan' });
             }
             user.subscriptionType = plan;
