@@ -42,7 +42,8 @@ exports.downloadUsersReport = async (req, res) => {
         contentArray.push({
             text: status ? 'گزارش کاربران فعال' : 'گزارش کاربران غیرفعال',
             style: 'header',
-            alignment: 'center'
+            alignment: 'center',
+              direction: 'rtl'
         });
         contentArray.push({ text: '\n' });
 
