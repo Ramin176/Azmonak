@@ -1,87 +1,68 @@
 const User = require('../models/User');
 const PDFDocument = require('pdfkit-table');
-const path = require('path');
-const fs = require('fs');
 
 // @desc    Generate and download a PDF report of users
 // @route   GET /api/reports/users/:status
 exports.downloadUsersReport = async (req, res) => {
     try {
         const status = req.params.status === 'active'; // 'active' or 'inactive'
+        
+        // ۱. گرفتن لیست کاربران از دیتابیس
+        const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
 
-        // ۱. گرفتن لیست کاربران
-        const users = await User.find({ isActive: status })
-            .select('name email subscriptionType createdAt')
-            .lean();
+        // ۲. ساخت یک سند PDF جدید
+        const doc = new PDFDocument({ margin: 30, size: 'A4' });
 
-        // ۲. ایجاد PDF
-        const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'portrait' });
-
+        // تنظیم هدرها برای دانلود فایل
         const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
-        res.setHeader('Content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-type', 'application/pdf');
 
+        // اتصال خروجی PDF به response
         doc.pipe(res);
 
-        // --- فونت فارسی ---
-        const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
-        if (!fs.existsSync(fontPath)) throw new Error('Font file not found');
-        doc.registerFont('Vazir', fontPath);
+        // --- ۳. طراحی محتوای PDF ---
+        
+        // اضافه کردن فونت فارسی (باید فایل فونت را در پروژه داشته باشید)
+        // فرض می‌کنیم یک پوشه fonts با فایل Vazirmatn.ttf دارید
+        doc.registerFont('Vazir', 'fonts/Vazirmatn-Regular.ttf');
         doc.font('Vazir');
 
-        // --- لوگو ---
-        const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.png'); // مسیر لوگو
+        // عنوان گزارش
+        doc.fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
+        doc.moveDown();
+ const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.png');
         if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, doc.page.width - 100, 20, { width: 70 }); // راست‌چین لوگو
+            doc.image(logoPath, 30, 30, { width: 70 });
         }
-
-        doc.moveDown(4);
-
-        // --- عنوان و تاریخ ---
-        doc.fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, {
-            align: 'right', // راست‌چین
-            underline: true
-        });
-
-        doc.moveDown(0.5);
-        doc.fontSize(12).text(`تاریخ: ${new Date().toLocaleDateString('fa-IR')}`, {
-            align: 'right'
-        });
-
-        doc.moveDown(2);
-
-        // --- جدول ---
+        // ساخت جدول
         const table = {
-            headers: [
-                { label: "نام", property: 'name', width: 120 },
-                { label: "ایمیل", property: 'email', width: 150 },
-                { label: "نوع اشتراک", property: 'subscriptionType', width: 80 },
-                { label: "تاریخ ثبت نام", property: 'createdAt', width: '*' },
-            ],
-            datas: users.map(u => ({
-                name: u.name,
-                email: u.email,
-                subscriptionType: u.subscriptionType || 'free',
-                createdAt: new Date(u.createdAt).toLocaleDateString('fa-IR')
-            })),
+            title: "لیست کاربران",
+            headers: ["نام", "ایمیل", "نوع اشتراک", "تاریخ ثبت نام"],
+            // تبدیل داده‌های کاربران به فرمت مورد نیاز جدول
+            rows: users.map(user => [
+                user.name,
+                user.email,
+                user.subscriptionType || 'free',
+                new Date(user.createdAt).toLocaleDateString('fa-IR')
+            ]),
         };
-
-        // جدول با راست‌چین کردن متن سلول‌ها
-        doc.table(table, {
-            prepareHeader: () => doc.font('Vazir').fontSize(12).fillColor('#000000'),
-            prepareRow: (row, i) => doc.font('Vazir').fontSize(10).fillColor('#000000'),
-            padding: 5,
-            columnSpacing: 10,
-            width: doc.page.width - 60,
-            x: 30,
-            align: 'right' // راست‌چین جدول
+        
+        // کشیدن جدول در سند
+        await doc.table(table, {
+            prepareHeader: () => doc.font('Vazir').fontSize(12),
+            prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
+                doc.font('Vazir').fontSize(10);
+            },
         });
+        
+        // ------------------------
 
-        // پایان PDF
+        // ۴. نهایی کردن و ارسال PDF
         doc.end();
 
     } catch (err) {
         console.error("Report Generation Error:", err);
-        if (!res.headersSent) res.status(500).send("Could not generate report.");
+        res.status(500).send("Could not generate report.");
     }
 };
