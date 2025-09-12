@@ -3,31 +3,41 @@ const PDFDocument = require('pdfkit-table');
 const path = require('path');
 const fs = require('fs');
 
-// تابع کمکی برای برعکس کردن متن فارسی (برای نمایش صحیح در pdfkit)
 function reverseText(text) {
     if (!text) return '';
     return text.split('').reverse().join('');
 }
 
 exports.downloadUsersReport = async (req, res) => {
+    const doc = new PDFDocument({ margin: 30, size: 'A4' }); // doc را خارج از try/catch تعریف کنید
+    let errorOccurred = false;
+
+    // مدیریت خطاها در جریان PDF
+    doc.on('error', (err) => {
+        console.error("PDFDoc Stream Error:", err);
+        errorOccurred = true; // نشانگر خطا را تنظیم کنید
+        if (!res.headersSent) {
+            res.status(500).send("Error generating PDF stream.");
+        }
+        // اگر جریان به دلیل خطا بسته شد، نیاز به doc.end() دستی در اینجا نیست، زیرا خودش باعث بسته شدن می‌شود
+    });
+
+    // مهم: مطمئن شوید که res.end() فقط زمانی فراخوانی می‌شود که doc به طور کامل تمام شده باشد
+    doc.on('end', () => {
+        if (!res.headersSent && !errorOccurred) { // اگر هنوز هدر ارسال نشده و خطایی رخ نداده
+            // res.end() به صورت خودکار توسط doc.pipe(res) فراخوانی می‌شود
+            // اما برای اطمینان بیشتر، می‌توانیم آن را در اینجا مدیریت کنیم اگر بخواهیم
+            // console.log("PDF stream ended. Response should be finished.");
+        }
+    });
+
     try {
         const status = req.params.status === 'active';
         const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
 
-        const doc = new PDFDocument({ margin: 30, size: 'A4' });
-        
         const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
         res.setHeader('Content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
         res.setHeader('Content-type', 'application/pdf');
-
-        // خطاها را در جریان پاسخ مدیریت کنید
-        doc.on('error', (err) => {
-            console.error("PDFDoc Error:", err);
-            if (!res.headersSent) {
-                res.status(500).send("Error generating PDF.");
-            }
-            doc.end(); // مطمئن شوید داکیومنت بسته می‌شود
-        });
 
         doc.pipe(res); // شروع به ارسال داده به پاسخ
 
@@ -37,15 +47,12 @@ exports.downloadUsersReport = async (req, res) => {
         }
         doc.registerFont('Vazir', fontPath);
         
-        // --- مسیر لوگو اینجا اصلاح شد ---
         const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.png');
         if (fs.existsSync(logoPath)) {
             doc.image(logoPath, { fit: [80, 80], align: 'left', valign: 'top' });
         } else {
             console.warn('Logo file not found at:', logoPath);
-            // می‌توانید در اینجا یک لوگوی جایگزین یا متن جایگزین قرار دهید
         }
-        // --- پایان اصلاح مسیر لوگو ---
         
         doc.font('Vazir').fontSize(20).text(reverseText(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`), { align: 'center' });
         doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR-u-nu-latn'), { align: 'center' });
@@ -75,15 +82,17 @@ exports.downloadUsersReport = async (req, res) => {
             },
         });
 
-        doc.end();
-        console.log("PDF generation initiated.");
+        doc.end(); // داکیومنت را پس از اتمام جدول‌بندی به پایان می‌رساند
+        console.log("PDF generation initiated and doc.end() called.");
         
     } catch (err) {
-        console.error("Report Generation Error:", err);
+        console.error("Report Generation Catch Error:", err);
+        errorOccurred = true; // نشانگر خطا را تنظیم کنید
         if (!res.headersSent) {
-            res.status(500).send("Could not generate report.");
+            res.status(500).send("Could not generate report due to an internal error.");
         }
-        if (doc && !doc._ended) {
+        // اگر خطایی رخ داد، مطمئن شوید داکیومنت بسته می‌شود
+        if (!doc._ended) { // اگر هنوز بسته نشده است
             doc.end();
         }
     }
