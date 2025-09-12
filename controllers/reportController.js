@@ -5,6 +5,7 @@ const fs = require('fs');
 
 // تابع کمکی برای برعکس کردن متن فارسی (برای نمایش صحیح در pdfkit)
 function reverseText(text) {
+    if (!text) return '';
     return text.split('').reverse().join('');
 }
 
@@ -20,25 +21,19 @@ exports.downloadUsersReport = async (req, res) => {
         res.setHeader('Content-type', 'application/pdf');
         doc.pipe(res);
 
-        // ثبت فونت فارسی
         const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
         if (!fs.existsSync(fontPath)) throw new Error('Font file not found');
         doc.registerFont('Vazir', fontPath);
         
-        // --- هدر گزارش (اصلاح شده) ---
-         const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.png');
-        doc.image(logoPath, 30, 30, { width: 70 });
-        doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
-        doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
-        doc.moveDown(3);
-
+        const logoPath = path.resolve('./public/logo.png');
+        if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, { fit: [80, 80], align: 'left', valign: 'top' });
+        }
         
         doc.font('Vazir').fontSize(20).text(reverseText(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`), { align: 'center' });
         doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR-u-nu-latn'), { align: 'center' });
         doc.moveDown(2);
 
-        // --- جدول (اصلاح شده) ---
-        // آماده‌سازی داده‌ها با متن برعکس شده
         const tableData = users.map(user => ({
             name: reverseText(user.name),
             email: user.email,
@@ -53,22 +48,23 @@ exports.downloadUsersReport = async (req, res) => {
                 { label: reverseText("نوع اشتراک"), property: 'subscriptionType', width: 80 },
                 { label: reverseText("تاریخ ثبت نام"), property: 'createdAt', width: '*' },
             ],
-            datas: tableData, // استفاده از داده‌های آماده شده
+            datas: tableData,
         };
         
-        // --- فراخوانی صحیح doc.table ---
-        // ما از then() استفاده می‌کنیم تا مطمئن شویم doc.end() بعد از اتمام جدول اجرا می‌شود
-        doc.table(table, {
-            prepareHeader: () => doc.font('Vazir').fontSize(11),
-            prepareRow: (row, indexColumn, indexRow, rectRow) => {
-                doc.font('Vazir').fontSize(9);
-            },
-        }).then(() => {
-            // این کد فقط پس از کشیده شدن کامل جدول اجرا می‌شود
+        // --- فراخوانی صحیح doc.table با استفاده از Promise ---
+        const generateTable = async () => {
+            await doc.table(table, {
+                prepareHeader: () => doc.font('Vazir').fontSize(11),
+                prepareRow: (row, indexColumn, indexRow, rectRow) => {
+                    doc.font('Vazir').fontSize(9);
+                },
+            });
+        };
+
+        generateTable().then(() => {
             doc.end();
             console.log("PDF generated and stream ended successfully.");
         }).catch(err => {
-            // مدیریت خطای احتمالی از خود doc.table
             console.error("Error during table generation:", err);
             if (!res.headersSent) {
                res.status(500).send("Could not generate table in PDF.");
