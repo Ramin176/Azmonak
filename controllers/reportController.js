@@ -1,83 +1,65 @@
 const User = require('../models/User');
 const PDFDocument = require('pdfkit-table');
-const path = require('path');
-const fs = require('fs');
 
-// تابع کمکی برای برعکس کردن متن فارسی (برای نمایش درست در pdfkit)
-function reverseText(text) {
-    return text.split('').reverse().join('');
-}
-
+// @desc    Generate and download a PDF report of users
+// @route   GET /api/reports/users/:status
 exports.downloadUsersReport = async (req, res) => {
-    const status = req.params.status === 'active';
-
-    let doc;
-
     try {
-        const users = await User.find({ isActive: status })
-            .select('name email subscriptionType createdAt')
-            .lean();
+        const status = req.params.status === 'active'; // 'active' or 'inactive'
+        
+        // ۱. گرفتن لیست کاربران از دیتابیس
+        const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
 
-        doc = new PDFDocument({ margin: 30, size: 'A4' });
+        // ۲. ساخت یک سند PDF جدید
+        const doc = new PDFDocument({ margin: 30, size: 'A4' });
 
-        const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0, 10)}.pdf`;
-        res.setHeader('Content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        // تنظیم هدرها برای دانلود فایل
+        const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
+        res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-type', 'application/pdf');
+
+        // اتصال خروجی PDF به response
         doc.pipe(res);
 
-        // مسیر فونت
-        const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
-        if (!fs.existsSync(fontPath)) throw new Error('Font file not found');
-        doc.registerFont('Vazir', fontPath);
+        // --- ۳. طراحی محتوای PDF ---
+        
+        // اضافه کردن فونت فارسی (باید فایل فونت را در پروژه داشته باشید)
+        // فرض می‌کنیم یک پوشه fonts با فایل Vazirmatn.ttf دارید
+        doc.registerFont('Vazir', 'fonts/Vazirmatn-Regular.ttf');
+        doc.font('Vazir');
 
-        // مسیر لوگو
-        const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.png');
-        if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, 30, 30, { width: 70 });
-        }
+        // عنوان گزارش
+        doc.fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
+        doc.moveDown();
 
-        // عنوان و تاریخ
-        doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
-        doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
-        doc.moveDown(3);
-
-        // داده‌های جدول
-        const tableData = users.map(user => ({
-            name: reverseText(user.name),
-            email: user.email,
-            subscriptionType: user.subscriptionType || 'free',
-            createdAt: new Date(user.createdAt).toLocaleDateString('fa-IR-u-nu-latn')
-        }));
-
+        // ساخت جدول
         const table = {
-            headers: [
-                { label: reverseText("نام"), property: 'name', width: 120 },
-                { label: reverseText("ایمیل"), property: 'email', width: 150 },
-                { label: reverseText("نوع اشتراک"), property: 'subscriptionType', width: 80 },
-                { label: reverseText("تاریخ ثبت نام"), property: 'createdAt', width: '*' },
-            ],
-            datas: tableData,
+            title: "لیست کاربران",
+            headers: ["نام", "ایمیل", "نوع اشتراک", "تاریخ ثبت نام"],
+            // تبدیل داده‌های کاربران به فرمت مورد نیاز جدول
+            rows: users.map(user => [
+                user.name,
+                user.email,
+                user.subscriptionType || 'free',
+                new Date(user.createdAt).toLocaleDateString('fa-IR')
+            ]),
         };
-
-        // ایجاد جدول
-        doc.table(table, {
-            prepareHeader: () => doc.font('Vazir').fontSize(11),
-            prepareRow: (row, indexColumn, indexRow, rectRow) => {
-                doc.font('Vazir').fontSize(9);
+        
+        // کشیدن جدول در سند
+        await doc.table(table, {
+            prepareHeader: () => doc.font('Vazir').fontSize(12),
+            prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
+                doc.font('Vazir').fontSize(10);
             },
         });
+        
+        // ------------------------
 
+        // ۴. نهایی کردن و ارسال PDF
         doc.end();
-        console.log("PDF generated and stream ended successfully.");
 
     } catch (err) {
         console.error("Report Generation Error:", err);
-        if (!res.headersSent) {
-            res.status(500).send("Could not generate report.");
-        }
-        // فقط در صورتی که doc هنوز باز است، آن را ببند
-        if (doc && !doc._ending) {
-            doc.end();
-        }
+        res.status(500).send("Could not generate report.");
     }
 };
