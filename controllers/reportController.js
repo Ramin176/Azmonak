@@ -1,84 +1,65 @@
 const User = require('../models/User');
 const PDFDocument = require('pdfkit-table');
-const path = require('path');
-const fs = require('fs');
 
-function reverseText(text) {
-    if (!text) return '';
-    return text.split('').reverse().join('');
-}
-
+// @desc    Generate and download a PDF report of users
+// @route   GET /api/reports/users/:status
 exports.downloadUsersReport = async (req, res) => {
     try {
-        const status = req.params.status === 'active';
+        const status = req.params.status === 'active'; // 'active' or 'inactive'
+        
+        // ۱. گرفتن لیست کاربران از دیتابیس
         const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
 
+        // ۲. ساخت یک سند PDF جدید
         const doc = new PDFDocument({ margin: 30, size: 'A4' });
-        
-        // یک آرایه برای نگهداری داده‌های PDF
-        let buffers = [];
-        doc.on('data', buffers.push.bind(buffers)); // هر قطعه داده را به آرایه اضافه می‌کند
-        doc.on('end', () => {
-            const pdfBuffer = Buffer.concat(buffers); // همه قطعات را به یک Buffer تبدیل می‌کند
-            const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
-            
-            res.setHeader('Content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
-            res.setHeader('Content-type', 'application/pdf');
-            res.send(pdfBuffer); // ارسال Buffer به عنوان پاسخ
-            console.log("PDF generated and sent as buffer.");
-        });
 
-        const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
-        if (!fs.existsSync(fontPath)) {
-            throw new Error('Font file not found at: ' + fontPath);
-        }
-        doc.registerFont('Vazir', fontPath);
-        
-        const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.png');
-        if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, { fit: [80, 80], align: 'left', valign: 'top' });
-        } else {
-            console.warn('Logo file not found at:', logoPath);
-        }
-        
-        doc.font('Vazir').fontSize(20).text(reverseText(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`), { align: 'center' });
-        doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR-u-nu-latn'), { align: 'center' });
-        doc.moveDown(2);
+        // تنظیم هدرها برای دانلود فایل
+        const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
+        res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-type', 'application/pdf');
 
-        const tableData = users.map(user => ({
-            name: reverseText(user.name),
-            email: user.email,
-            subscriptionType: user.subscriptionType || 'free',
-            createdAt: new Date(user.createdAt).toLocaleDateString('fa-IR-u-nu-latn')
-        }));
+        // اتصال خروجی PDF به response
+        doc.pipe(res);
+
+        // --- ۳. طراحی محتوای PDF ---
         
+        // اضافه کردن فونت فارسی (باید فایل فونت را در پروژه داشته باشید)
+        // فرض می‌کنیم یک پوشه fonts با فایل Vazirmatn.ttf دارید
+        doc.registerFont('Vazir', 'fonts/Vazirmatn-Regular.ttf');
+        doc.font('Vazir');
+
+        // عنوان گزارش
+        doc.fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
+        doc.moveDown();
+
+        // ساخت جدول
         const table = {
-            headers: [
-                { label: reverseText("نام"), property: 'name', width: 120, renderer: (value) => value },
-                { label: reverseText("ایمیل"), property: 'email', width: 150 },
-                { label: reverseText("نوع اشتراک"), property: 'subscriptionType', width: 80 },
-                { label: reverseText("تاریخ ثبت نام"), property: 'createdAt', width: '*' },
-            ],
-            datas: tableData,
+            title: "لیست کاربران",
+            headers: ["نام", "ایمیل", "نوع اشتراک", "تاریخ ثبت نام"],
+            // تبدیل داده‌های کاربران به فرمت مورد نیاز جدول
+            rows: users.map(user => [
+                user.name,
+                user.email,
+                user.subscriptionType || 'free',
+                new Date(user.createdAt).toLocaleDateString('fa-IR')
+            ]),
         };
         
+        // کشیدن جدول در سند
         await doc.table(table, {
-            prepareHeader: () => doc.font('Vazir').fontSize(11),
-            prepareRow: (row, indexColumn, indexRow, rectRow) => {
-                doc.font('Vazir').fontSize(9);
+            prepareHeader: () => doc.font('Vazir').fontSize(12),
+            prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
+                doc.font('Vazir').fontSize(10);
             },
         });
-
-        doc.end(); // این باعث فراخوانی event 'end' می‌شود
         
+        // ------------------------
+
+        // ۴. نهایی کردن و ارسال PDF
+        doc.end();
+
     } catch (err) {
-        console.error("Report Generation Error (Buffer Method):", err);
-        if (!res.headersSent) {
-            res.status(500).send("Could not generate report.");
-        }
-        // اگر خطایی رخ داد، مطمئن شوید داکیومنت بسته می‌شود
-        if (doc && !doc._ended) {
-            doc.end(); // این باعث فراخوانی event 'end' می‌شود
-        }
+        console.error("Report Generation Error:", err);
+        res.status(500).send("Could not generate report.");
     }
 };
