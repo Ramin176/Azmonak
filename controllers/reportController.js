@@ -1,43 +1,39 @@
 const User = require('../models/User');
 const PDFDocument = require('pdfkit-table');
 const path = require('path');
-const fs = require('fs'); 
+const fs = require('fs');
 
 exports.downloadUsersReport = async (req, res) => {
     try {
         const status = req.params.status === 'active';
-        const users = await User.find({ isActive: status })
-            .select('name email subscriptionType createdAt')
-            .lean();
+        const users = await User.find({ isActive: status }).select('name email subscriptionType createdAt').lean();
 
         const doc = new PDFDocument({ margin: 30, size: 'A4' });
-
-        const filename = `users-report-${req.params.status}-${new Date().toISOString().slice(0,10)}.pdf`;
-        res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
-        res.setHeader('Content-type', 'application/pdf');
+        // ... (تنظیم هدرها)
         doc.pipe(res);
 
-        // --- فونت فارسی ---
+        // --- ۱. بررسی و ثبت فونت فارسی ---
         const fontPath = path.resolve('./fonts/Vazirmatn-Regular.ttf');
-        if (fs.existsSync(fontPath)) {
-            doc.registerFont('Vazir', fontPath);
-            doc.font('Vazir');
-        } else {
-            console.error("Font not found:", fontPath);
+        console.log("Attempting to load font from:", fontPath); // لاگ برای دیباگ
+        if (!fs.existsSync(fontPath)) {
+            // اگر فونت پیدا نشد، یک خطای واضح ایجاد کن
+            throw new Error(`Font file not found at path: ${fontPath}`);
         }
+        doc.registerFont('Vazir', fontPath);
+        // ------------------------------------
 
-        // --- لوگو در بالا ---
-        const logoPath = path.resolve('./public/uploads/photo_2025-09-11_14-01-25.jpg'); 
-        if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, 30, 30, { width: 70 });
-        }
-
-        // --- عنوان ---
+        // ... (کد لوگو)
+ const logoPath = path.join(__dirname, '..', 'uploads', 'photo_2025-09-11_14-01-25.jpg');
+        doc.image(logoPath, 30, 30, { width: 70 });
         doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
         doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
         doc.moveDown(3);
 
-        // --- آماده‌سازی داده‌ها ---
+        // ۲. حالا از فونت ثبت شده استفاده می‌کنیم
+        doc.font('Vazir').fontSize(20).text(`گزارش کاربران ${status ? 'فعال' : 'غیرفعال'}`, { align: 'center' });
+        doc.fontSize(10).text(new Date().toLocaleDateString('fa-IR'), { align: 'center' });
+        doc.moveDown(3);
+
         const tableRows = users.map(user => [
             new Date(user.createdAt).toLocaleDateString('fa-IR'),
             user.subscriptionType || 'free',
@@ -50,26 +46,22 @@ exports.downloadUsersReport = async (req, res) => {
             rows: tableRows,
         };
 
-        // --- جدول ---
-        await doc.table(table, {
+        // ۳. در تنظیمات جدول هم از فونت Vazir استفاده می‌کنیم
+        doc.table(table, {
             rtl: true,
-            prepareHeader: (columns, rect) => {
-                // پس‌زمینه هدر
-                doc.addBackground(rect, '#008080', 1);
-                // متن هدر
-                doc.font('Vazir').fontSize(11).fillColor('white');
-            },
+            prepareHeader: () => doc.font('Vazir').fontSize(11).fillColor('white'),
             prepareRow: (row, indexColumn, indexRow, rectRow) => {
                 doc.font('Vazir').fontSize(9).fillColor('black');
                 if (indexRow % 2 === 0) doc.addBackground(rectRow, '#f5f5f5', 0.9);
-            }
+            },
+            headerColor: '#008080',
+            headerOpacity: 1,
         });
 
-        // پایان PDF
         doc.end();
 
     } catch (err) {
-        console.error("Report Generation Error:", err);
+        console.error("!!! Report Generation Error:", err);
         if (!res.headersSent) {
             res.status(500).send("Could not generate report.");
         }
