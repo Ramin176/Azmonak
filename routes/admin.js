@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Course = require('../models/Course');
 const Category = require('../models/Category');
 const Question = require('../models/Question');
+const { checkSubscriptionStatus } = require('../utils/subscriptionHelper');
 // const QuestionType = require('../models/QuestionType'); // <-- مدل جدید
 
 
@@ -89,8 +90,6 @@ router.get('/dashboard', checkAuth, async (req, res) => {
     }
 });
 
-// @route   GET /admin/users
-// @desc    Show users management page with search and filter
 router.get('/users', checkAuth, async (req, res) => {
     try {
         const { search, status } = req.query;
@@ -102,24 +101,28 @@ router.get('/users', checkAuth, async (req, res) => {
                 { email: { $regex: search, $options: 'i' } }
             ];
         }
-
         if (status && status !== '') {
             query.isActive = (status === 'active');
         }
-        
-        // ۱. کاربران را از دیتابیس می‌خوانیم
-        const users = await User.find(query).select('-password');
 
-        // ۲. آنها را به صفحه ارسال می‌کنیم
+        // ۱. ابتدا کاربران را از دیتابیس می‌خوانیم
+        const usersFromDb = await User.find(query).select('-password');
+
+        // ۲. حالا وضعیت اشتراک هر کاربر را چک و در صورت نیاز آپدیت می‌کنیم
+        const updatedUsers = await Promise.all(
+            usersFromDb.map(user => checkSubscriptionStatus(user))
+        );
+        
+        // ۳. در نهایت، لیست آپدیت شده را به صفحه ارسال می‌کنیم
         res.render('users', {
             title: 'مدیریت کاربران',
-            users: users,          // <-- این خط بسیار مهم است و احتمالاً جا افتاده بود
-            search: search || '',  // برای اینکه مقدار جستجوی قبلی در فیلد باقی بماند
-            status: status || ''   // برای اینکه مقدار فیلتر قبلی در منو باقی بماند
+            users: updatedUsers, // <-- از متغیر جدید و آپدیت شده استفاده می‌کنیم
+            search: search || '',
+            status: status || ''
         });
 
     } catch (err) {
-        console.error(err);
+        console.error("Error in /admin/users route:", err);
         res.status(500).send("Server Error");
     }
 });

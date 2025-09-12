@@ -126,6 +126,7 @@ exports.getMe = async (req, res) => {
         if (!user) {
             return res.status(404).json({ msg: 'User not found' });
         }
+          user = await checkSubscriptionStatus(user);
         res.json(user);
     } catch (err) {
         console.error("!!! ERROR in getMe controller:", err.message);
